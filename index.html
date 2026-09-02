@@ -141,7 +141,7 @@
     font-family:'IBM Plex Mono', monospace;
     font-size:11px; letter-spacing:0.06em; color:var(--text-dim);
   }
-  #map{ height:520px; width:100%; filter: saturate(0.35) brightness(0.9); }
+  #map{ height:520px; width:100%; filter: brightness(0.92) contrast(1.05); }
 
   .legend{
     display:flex; gap:14px; padding:10px 16px; flex-wrap:wrap;
@@ -367,6 +367,7 @@ function normalizeUSGS(geojson){
     .map(f => {
       const [lon, lat, depth] = f.geometry.coordinates;
       return {
+        id: f.id,
         mag: f.properties.mag,
         place: f.properties.place || 'Lokasi tidak diketahui',
         depthKm: depth,
@@ -404,6 +405,69 @@ const COMPASS_ID = {
 };
 const COMPASS_WORDS_ID = ['Utara','Selatan','Timur','Barat','Laut','Daya','Tenggara'];
 
+// Perkiraan cakupan wilayah 38 provinsi Indonesia (daerah tingkat 1) berbasis kotak
+// koordinat (bounding box). Ini adalah pendekatan sederhana untuk menentukan provinsi
+// dari titik episenter — bukan batas administratif presisi tinggi, tapi cukup akurat
+// untuk keperluan pelaporan lokasi gempa. Diurutkan dari wilayah kecil/spesifik ke besar
+// agar percocokan pertama pada area tumpang-tindih lebih tepat.
+const PROVINSI_BBOX = [
+  { nama:'DKI Jakarta', latMin:-6.4, latMax:-5.9, lonMin:106.6, lonMax:107.0 },
+  { nama:'DI Yogyakarta', latMin:-8.3, latMax:-7.5, lonMin:110.0, lonMax:110.8 },
+  { nama:'Gorontalo', latMin:-1.2, latMax:1.2, lonMin:121.2, lonMax:123.6 },
+  { nama:'Kepulauan Riau', latMin:-1.0, latMax:4.9, lonMin:103.3, lonMax:109.7 },
+  { nama:'Kepulauan Bangka Belitung', latMin:-4.0, latMax:-1.0, lonMin:105.0, lonMax:108.5 },
+  { nama:'Banten', latMin:-7.1, latMax:-5.7, lonMin:105.0, lonMax:106.7 },
+  { nama:'Bali', latMin:-8.9, latMax:-8.0, lonMin:114.4, lonMax:115.7 },
+  { nama:'Kalimantan Utara', latMin:1.9, latMax:4.4, lonMin:115.0, lonMax:118.2 },
+  { nama:'Aceh', latMin:2.0, latMax:6.0, lonMin:95.0, lonMax:98.5 },
+  { nama:'Sumatera Utara', latMin:1.0, latMax:4.5, lonMin:97.0, lonMax:100.0 },
+  { nama:'Sumatera Barat', latMin:-3.5, latMax:0.5, lonMin:98.4, lonMax:101.5 },
+  { nama:'Riau', latMin:-1.2, latMax:2.5, lonMin:100.0, lonMax:103.5 },
+  { nama:'Jambi', latMin:-3.0, latMax:-0.5, lonMin:101.0, lonMax:104.5 },
+  { nama:'Sumatera Selatan', latMin:-5.0, latMax:-1.0, lonMin:102.0, lonMax:106.0 },
+  { nama:'Bengkulu', latMin:-5.5, latMax:-2.0, lonMin:101.0, lonMax:103.5 },
+  { nama:'Lampung', latMin:-6.0, latMax:-3.4, lonMin:103.5, lonMax:106.0 },
+  { nama:'Jawa Barat', latMin:-7.8, latMax:-5.9, lonMin:106.3, lonMax:108.9 },
+  { nama:'Jawa Tengah', latMin:-8.2, latMax:-5.9, lonMin:108.5, lonMax:111.5 },
+  { nama:'Jawa Timur', latMin:-8.8, latMax:-6.7, lonMin:111.0, lonMax:114.5 },
+  { nama:'Nusa Tenggara Barat', latMin:-9.1, latMax:-8.0, lonMin:115.7, lonMax:119.4 },
+  { nama:'Nusa Tenggara Timur', latMin:-11.0, latMax:-8.0, lonMin:118.9, lonMax:125.2 },
+  { nama:'Kalimantan Barat', latMin:-3.1, latMax:2.0, lonMin:108.5, lonMax:114.9 },
+  { nama:'Kalimantan Tengah', latMin:-3.6, latMax:0.9, lonMin:110.9, lonMax:115.9 },
+  { nama:'Kalimantan Selatan', latMin:-4.3, latMax:-1.2, lonMin:114.3, lonMax:116.6 },
+  { nama:'Kalimantan Timur', latMin:-2.6, latMax:2.6, lonMin:115.0, lonMax:119.3 },
+  { nama:'Sulawesi Utara', latMin:-1.0, latMax:5.0, lonMin:121.0, lonMax:127.5 },
+  { nama:'Sulawesi Tengah', latMin:-3.5, latMax:2.0, lonMin:119.0, lonMax:124.5 },
+  { nama:'Sulawesi Barat', latMin:-3.9, latMax:-0.5, lonMin:118.6, lonMax:119.9 },
+  { nama:'Sulawesi Selatan', latMin:-8.0, latMax:-1.9, lonMin:118.6, lonMax:121.8 },
+  { nama:'Sulawesi Tenggara', latMin:-6.2, latMax:-2.9, lonMin:120.4, lonMax:124.2 },
+  { nama:'Maluku Utara', latMin:-3.5, latMax:3.5, lonMin:124.0, lonMax:129.5 },
+  { nama:'Maluku', latMin:-9.0, latMax:-2.0, lonMin:125.0, lonMax:135.0 },
+  { nama:'Papua Barat Daya', latMin:-3.5, latMax:0.6, lonMin:129.5, lonMax:132.3 },
+  { nama:'Papua Barat', latMin:-4.5, latMax:0.2, lonMin:132.3, lonMax:135.0 },
+  { nama:'Papua Tengah', latMin:-5.5, latMax:-2.4, lonMin:135.0, lonMax:137.6 },
+  { nama:'Papua Pegunungan', latMin:-6.0, latMax:-3.0, lonMin:137.6, lonMax:141.0 },
+  { nama:'Papua Selatan', latMin:-9.5, latMax:-5.0, lonMin:137.0, lonMax:141.5 },
+  { nama:'Papua', latMin:-3.0, latMax:1.0, lonMin:137.5, lonMax:141.5 }
+];
+
+function getProvinsi(lat, lon){
+  if(!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const hit = PROVINSI_BBOX.find(p => lat >= p.latMin && lat <= p.latMax && lon >= p.lonMin && lon <= p.lonMax);
+  return hit ? hit.nama : null;
+}
+
+// Mengganti akhiran nama negara generik ("Indonesia") dengan nama provinsi (daerah
+// tingkat 1) hasil resolusi koordinat episenter — sesuai kebijakan redaksi.
+function gantiIndonesiaDenganProvinsi(text, lat, lon){
+  if(!text) return text;
+  if(/,\s*Indonesia\s*$/i.test(text)){
+    const provinsi = getProvinsi(lat, lon);
+    if(provinsi) return text.replace(/,\s*Indonesia\s*$/i, `, ${provinsi}`);
+  }
+  return text;
+}
+
 function terjemahArahMataAngin(text){
   if(!text) return text;
   // Format USGS, contoh: "18 km SE of Bengkulu, Indonesia"
@@ -422,6 +486,12 @@ function terjemahArahMataAngin(text){
     if(isDirection) return `${dist} arah ${spaced} ${place}`;
   }
   return text;
+}
+
+// Gabungan: terjemahkan arah mata angin lalu ganti "Indonesia" dengan nama provinsi
+// yang sebenarnya berdasarkan koordinat episenter.
+function formatLokasiGempa(text, lat, lon){
+  return gantiIndonesiaDenganProvinsi(terjemahArahMataAngin(text), lat, lon);
 }
 
 function depthColor(km){
@@ -448,19 +518,24 @@ function relativeTime(dateTimeStr){
   return days + ' hari lalu';
 }
 
-let map, markerLayer;
+let map, markerLayer, markersById = {};
 function initMap(){
   map = L.map('map', { zoomControl:true, attributionControl:false }).setView([-2.5, 118], 5);
-  // Satu-satunya base layer: Esri Dark Gray Canvas — tanpa layer control / opsi ganti peta.
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 12, minZoom: 3,
-    attribution: 'Esri, HERE, Garmin'
+  // Peta hibrid Esri: citra satelit + layer referensi (batas wilayah & label) di atasnya.
+  // Keduanya ditambahkan langsung tanpa kontrol layer — tidak ada opsi ganti peta.
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, minZoom: 3,
+    attribution: 'Esri, Maxar, Earthstar Geographics'
+  }).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, minZoom: 3
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
 }
 
 function plotQuakes(list){
   markerLayer.clearLayers();
+  markersById = {};
   list.forEach(q => {
     const color = depthColor(q.depthKm);
     const marker = L.circleMarker([q.lat, q.lon], {
@@ -471,19 +546,25 @@ function plotQuakes(list){
       fillOpacity: 0.35
     }).bindPopup(
       `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
-         <b>M${q.mag.toFixed(1)}</b> — ${terjemahArahMataAngin(q.place)}<br>
+         <b>M${q.mag.toFixed(1)}</b> — ${formatLokasiGempa(q.place, q.lat, q.lon)}<br>
          Kedalaman: ${Math.round(q.depthKm)} km<br>
          Waktu: ${fmtTimeWIB(q.timeMs)} WIB
        </div>`
     );
+    // Klik langsung pada titik di peta juga memperdalam zoom ke lokasi tersebut.
+    marker.on('click', () => {
+      map.flyTo([q.lat, q.lon], 13, { duration: 1.1 });
+    });
     markerLayer.addLayer(marker);
+    markersById[q.id] = marker;
   });
   document.getElementById('mapCount').textContent = list.length + ' TITIK';
 }
 
 function renderHero(g){
   document.getElementById('heroMag').textContent = g.Magnitude;
-  document.getElementById('heroWilayah').textContent = terjemahArahMataAngin(g.Wilayah);
+  const { lat: heroLat, lon: heroLon } = parseCoord(g.Coordinates);
+  document.getElementById('heroWilayah').textContent = formatLokasiGempa(g.Wilayah, heroLat, heroLon);
   document.getElementById('heroTime').textContent = `${g.Tanggal}, ${g.Jam}`;
   document.getElementById('heroDepth').textContent = g.Kedalaman;
   document.getElementById('heroCoord').textContent = g.Coordinates;
@@ -511,12 +592,16 @@ function renderTicker(list){
     row.innerHTML = `
       <div class="quake-mag" style="color:${color};border-color:${color}">${q.mag.toFixed(1)}</div>
       <div class="quake-info">
-        <div class="loc">${terjemahArahMataAngin(q.place)}</div>
+        <div class="loc">${formatLokasiGempa(q.place, q.lat, q.lon)}</div>
         <div class="meta">KEDALAMAN ${Math.round(q.depthKm)} KM · ${q.lat.toFixed(2)}, ${q.lon.toFixed(2)}</div>
       </div>
       <div class="quake-time">${relativeTimeMs(q.timeMs)}<br>${fmtTimeWIB(q.timeMs)}</div>
     `;
-    row.addEventListener('click', () => { map.flyTo([q.lat, q.lon], 7); });
+    row.addEventListener('click', () => {
+      map.flyTo([q.lat, q.lon], 13, { duration: 1.1 });
+      const marker = markersById[q.id];
+      if(marker) map.once('moveend', () => marker.openPopup());
+    });
     el.appendChild(row);
   });
   document.getElementById('listCount').textContent = list.length + ' EVENT';
@@ -532,8 +617,9 @@ function renderFelt(list){
   list.slice(0,9).forEach(q => {
     const card = document.createElement('div');
     card.className = 'felt-card';
+    const { lat: fLat, lon: fLon } = parseCoord(q.Coordinates || '');
     card.innerHTML = `
-      <div class="loc">${terjemahArahMataAngin(q.Wilayah)}</div>
+      <div class="loc">${formatLokasiGempa(q.Wilayah, fLat, fLon)}</div>
       <div class="row"><span>Magnitudo</span><b>${q.Magnitude}</b></div>
       <div class="row"><span>Kedalaman</span><span>${q.Kedalaman}</span></div>
       <div class="row"><span>Dirasakan</span><span>${q.Dirasakan || '–'}</span></div>
