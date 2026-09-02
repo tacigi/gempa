@@ -272,7 +272,7 @@
 <div class="layout">
   <div class="panel">
     <div class="panel-head">
-      <span>PETA SEBARAN — 15 GEMPA TERKINI M5.0+</span>
+      <span>PETA SEBARAN — GEMPA M2.0+ (30 HARI TERAKHIR)</span>
       <span id="mapCount">0 TITIK</span>
     </div>
     <div class="legend">
@@ -285,7 +285,7 @@
 
   <div class="panel">
     <div class="panel-head">
-      <span>LOG GEMPABUMI TERKINI</span>
+      <span>LOG GEMPABUMI TERKINI — M2.0+</span>
       <span id="listCount">—</span>
     </div>
     <div class="ticker" id="tickerList">
@@ -305,7 +305,7 @@
 </div>
 
 <footer>
-  <span>Sumber data: <a href="https://data.bmkg.go.id/gempabumi/" target="_blank" rel="noopener">BMKG — Data Gempabumi Terbuka</a>. Diperbarui otomatis tiap 60 detik.</span>
+  <span>Sumber data: <a href="https://data.bmkg.go.id/gempabumi/" target="_blank" rel="noopener">BMKG</a> (gempa terbaru &amp; dirasakan) · <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> (sebaran M2.0+). Diperbarui otomatis tiap 60 detik.</span>
   <span id="lastUpdate">—</span>
 </footer>
 
@@ -318,9 +318,26 @@ const PROXIES = [
 ];
 const URLS = {
   auto: 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json',
-  terkini: 'https://data.bmkg.go.id/DataMKG/TEWS/gempaterkini.json',
   dirasakan: 'https://data.bmkg.go.id/DataMKG/TEWS/gempadirasakan.json'
 };
+// Wilayah Indonesia (bounding box) + magnitudo minimum 2.0 — BMKG hanya menyediakan feed
+// publik untuk M5.0+, jadi untuk mendeteksi gempa kecil (M2.0+) dipakai feed USGS yang
+// mencakup jaringan seismik global termasuk event kecil di Indonesia, dan sudah CORS-enabled.
+function buildUSGSUrl(){
+  const start = new Date(Date.now() - 30*24*3600*1000).toISOString();
+  const params = new URLSearchParams({
+    format: 'geojson',
+    starttime: start,
+    minmagnitude: '2',
+    limit: '200',
+    orderby: 'time',
+    minlatitude: '-11',
+    maxlatitude: '6',
+    minlongitude: '95',
+    maxlongitude: '141'
+  });
+  return `https://earthquake.usgs.gov/fdsnws/event/1/query?${params.toString()}`;
+}
 
 async function fetchWithFallback(url){
   let lastErr;
@@ -332,6 +349,50 @@ async function fetchWithFallback(url){
     }catch(e){ lastErr = e; }
   }
   throw lastErr;
+}
+
+// USGS sudah mendukung CORS langsung, jadi dicoba dulu tanpa proxy sebelum fallback.
+async function fetchUSGS(url){
+  try{
+    const res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  }catch(e){
+    return await fetchWithFallback(url);
+  }
+}
+
+function normalizeUSGS(geojson){
+  return (geojson.features || [])
+    .map(f => {
+      const [lon, lat, depth] = f.geometry.coordinates;
+      return {
+        mag: f.properties.mag,
+        place: f.properties.place || 'Lokasi tidak diketahui',
+        depthKm: depth,
+        lat, lon,
+        timeMs: f.properties.time
+      };
+    })
+    .filter(q => q.mag !== null && !isNaN(q.mag) && Number.isFinite(q.lat) && Number.isFinite(q.lon));
+}
+
+function relativeTimeMs(ms){
+  const diffMs = Date.now() - ms;
+  const mins = Math.floor(diffMs / 60000);
+  if(mins < 1) return 'baru saja';
+  if(mins < 60) return mins + ' menit lalu';
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return hrs + ' jam lalu';
+  const days = Math.floor(hrs/24);
+  return days + ' hari lalu';
+}
+
+function fmtTimeWIB(ms){
+  return new Date(ms).toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta', hour:'2-digit', minute:'2-digit',
+    day:'2-digit', month:'2-digit', year:'numeric'
+  });
 }
 
 function depthColor(km){
@@ -361,8 +422,10 @@ function relativeTime(dateTimeStr){
 let map, markerLayer;
 function initMap(){
   map = L.map('map', { zoomControl:true, attributionControl:false }).setView([-2.5, 118], 5);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 12, minZoom: 3
+  // Satu-satunya base layer: Esri Dark Gray Canvas — tanpa layer control / opsi ganti peta.
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 12, minZoom: 3,
+    attribution: 'Esri, HERE, Garmin'
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
 }
@@ -370,21 +433,18 @@ function initMap(){
 function plotQuakes(list){
   markerLayer.clearLayers();
   list.forEach(q => {
-    const { lat, lon } = parseCoord(q.Coordinates);
-    const depth = parseFloat(q.Kedalaman);
-    const color = depthColor(depth);
-    const mag = parseFloat(q.Magnitude);
-    const marker = L.circleMarker([lat, lon], {
-      radius: Math.max(5, mag * 2.4),
+    const color = depthColor(q.depthKm);
+    const marker = L.circleMarker([q.lat, q.lon], {
+      radius: Math.max(4, q.mag * 2.4),
       color: color,
       weight: 1.2,
       fillColor: color,
       fillOpacity: 0.35
     }).bindPopup(
       `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
-         <b>M${q.Magnitude}</b> — ${q.Wilayah}<br>
-         Kedalaman: ${q.Kedalaman}<br>
-         Waktu: ${q.Tanggal}, ${q.Jam}
+         <b>M${q.mag.toFixed(1)}</b> — ${q.place}<br>
+         Kedalaman: ${Math.round(q.depthKm)} km<br>
+         Waktu: ${fmtTimeWIB(q.timeMs)} WIB
        </div>`
     );
     markerLayer.addLayer(marker);
@@ -415,21 +475,19 @@ function renderTicker(list){
   }
   el.innerHTML = '';
   list.forEach(q => {
-    const mag = parseFloat(q.Magnitude);
-    const color = mag >= 5 ? 'var(--sig-high)' : (mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
+    const color = q.mag >= 5 ? 'var(--sig-high)' : (q.mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
     const row = document.createElement('div');
     row.className = 'quake-row';
     row.tabIndex = 0;
     row.innerHTML = `
-      <div class="quake-mag" style="color:${color};border-color:${color}">${q.Magnitude}</div>
+      <div class="quake-mag" style="color:${color};border-color:${color}">${q.mag.toFixed(1)}</div>
       <div class="quake-info">
-        <div class="loc">${q.Wilayah}</div>
-        <div class="meta">KEDALAMAN ${q.Kedalaman} · ${q.Coordinates}</div>
+        <div class="loc">${q.place}</div>
+        <div class="meta">KEDALAMAN ${Math.round(q.depthKm)} KM · ${q.lat.toFixed(2)}, ${q.lon.toFixed(2)}</div>
       </div>
-      <div class="quake-time">${relativeTime(q.DateTime)}<br>${q.Jam}</div>
+      <div class="quake-time">${relativeTimeMs(q.timeMs)}<br>${fmtTimeWIB(q.timeMs)}</div>
     `;
-    const { lat, lon } = parseCoord(q.Coordinates);
-    row.addEventListener('click', () => { map.flyTo([lat, lon], 7); });
+    row.addEventListener('click', () => { map.flyTo([q.lat, q.lon], 7); });
     el.appendChild(row);
   });
   document.getElementById('listCount').textContent = list.length + ' EVENT';
@@ -461,18 +519,18 @@ async function loadAll(){
   const statusText = document.getElementById('statusText');
   statusText.textContent = 'MEMPERBARUI DATA…';
   try{
-    const [autoData, terkiniData, dirasakanData] = await Promise.all([
+    const [autoData, usgsData, dirasakanData] = await Promise.all([
       fetchWithFallback(URLS.auto),
-      fetchWithFallback(URLS.terkini),
+      fetchUSGS(buildUSGSUrl()),
       fetchWithFallback(URLS.dirasakan)
     ]);
 
     const gEvent = autoData.Infogempa.gempa;
     renderHero(gEvent);
 
-    const terkiniList = terkiniData.Infogempa.gempa;
-    plotQuakes(terkiniList);
-    renderTicker(terkiniList);
+    const quakeList = normalizeUSGS(usgsData);
+    plotQuakes(quakeList);
+    renderTicker(quakeList);
 
     const dirasakanList = dirasakanData.Infogempa.gempa;
     renderFelt(dirasakanList);
