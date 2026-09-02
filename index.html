@@ -1,668 +1,1083 @@
 <!DOCTYPE html>
-<html lang="id">
+<html xmlns="">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PANTAU GEMPA — Monitor Seismik Indonesia</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>WRS-NTWC Indonesia</title>
+<link rel="icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=">
+
+<!-- Tabler CSS -->
+<link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler-flags.min.css" rel="stylesheet">
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+<!-- Highcharts -->
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/series-label.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/export-data.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="https://code.highcharts.com/modules/broken-axis.js"></script>
+<script src="https://code.highcharts.com/highcharts-more.js"></script>
+
+<!-- jQuery & Moment -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.43/moment-timezone-with-data.min.js"></script>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
 <style>
-  :root{
-    --ink:#0F1416;
-    --panel:#161E21;
-    --panel-2:#1C262A;
-    --line: #2C3A3E;
-    --stone:#E7E1D3;
-    --stone-dim:#B9B2A0;
-    --text:#EDE8DC;
-    --text-dim:#8FA0A3;
-    --sig-high:#C1440E;
-    --sig-mid:#D9A441;
-    --sig-low:#4A8B7C;
-    --sig-high-glow: rgba(193,68,14,0.35);
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:var(--ink);
-    color:var(--text);
-    font-family:'Space Grotesk', sans-serif;
-    -webkit-font-smoothing:antialiased;
-  }
-  .mono{ font-family:'IBM Plex Mono', monospace; }
+/* ===== PRELOADER ===== */
+.preloader {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #0a0e14;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    transition: opacity 0.6s ease;
+}
+.preloader.hide {
+    opacity: 0;
+    pointer-events: none;
+}
+.loading {
+    text-align: center;
+}
+.Box {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+.Box span {
+    width: 12px;
+    height: 12px;
+    background: #f8c74a;
+    border-radius: 2px;
+    animation: boxPulse 1.2s infinite ease-in-out;
+}
+.Box span:nth-child(2) { animation-delay: 0.1s; background: #e8a838; }
+.Box span:nth-child(3) { animation-delay: 0.2s; background: #d88a28; }
+.Box span:nth-child(4) { animation-delay: 0.3s; background: #c87a18; }
+.Box span:nth-child(5) { animation-delay: 0.4s; background: #b86a08; }
+.Box span:nth-child(6) { animation-delay: 0.5s; background: #a85a00; }
+@keyframes boxPulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+.loading h2 {
+    color: #8a9ba8;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 6px;
+    font-weight: 300;
+}
 
-  /* ---------- topbar ---------- */
-  .topbar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:14px 20px;
-    border-bottom:1px solid var(--line);
-    position:sticky; top:0; z-index:50;
-    background:rgba(15,20,22,0.92);
-    backdrop-filter: blur(6px);
-  }
-  .brand{ display:flex; align-items:baseline; gap:10px; }
-  .brand h1{
-    font-size:18px; letter-spacing:0.02em; margin:0; font-weight:700;
-  }
-  .brand span.sub{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; color:var(--text-dim);
-  }
-  .status{
-    display:flex; align-items:center; gap:8px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; color:var(--sig-low);
-  }
-  .dot{
-    width:7px; height:7px; border-radius:50%;
-    background:var(--sig-low);
-    box-shadow:0 0 0 0 rgba(74,139,124,0.6);
-    animation:pulse-dot 2s infinite;
-  }
-  @keyframes pulse-dot{
-    0%{box-shadow:0 0 0 0 rgba(74,139,124,0.5);}
-    70%{box-shadow:0 0 0 6px rgba(74,139,124,0);}
-    100%{box-shadow:0 0 0 0 rgba(74,139,124,0);}
-  }
+/* ===== GLOBAL ===== */
+* { box-sizing: border-box; }
+body {
+    background: #0f1419;
+    color: #e8edf2;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+.page { 
+    max-width: 100%;
+    overflow-x: hidden;
+}
 
-  /* ---------- hero ---------- */
-  .hero{
-    border-bottom:1px solid var(--line);
-    padding:28px 20px 22px;
-    display:grid;
+/* ===== PRELOADER ===== */
+.preloader {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #0a0e14;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    transition: opacity 0.6s ease;
+}
+.preloader.hide {
+    opacity: 0;
+    pointer-events: none;
+}
+.loading {
+    text-align: center;
+}
+.Box {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+.Box span {
+    width: 12px;
+    height: 12px;
+    background: #f8c74a;
+    border-radius: 2px;
+    animation: boxPulse 1.2s infinite ease-in-out;
+}
+.Box span:nth-child(2) { animation-delay: 0.1s; background: #e8a838; }
+.Box span:nth-child(3) { animation-delay: 0.2s; background: #d88a28; }
+.Box span:nth-child(4) { animation-delay: 0.3s; background: #c87a18; }
+.Box span:nth-child(5) { animation-delay: 0.4s; background: #b86a08; }
+.Box span:nth-child(6) { animation-delay: 0.5s; background: #a85a00; }
+@keyframes boxPulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+.loading h2 {
+    color: #8a9ba8;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    letter-spacing: 6px;
+    font-weight: 300;
+}
+
+/* ===== TOP BAR ===== */
+.topbar {
+    background: #1a2128;
+    padding: 10px 20px;
+    border-bottom: 1px solid #2a3340;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.topbar .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+.topbar .brand h1 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: #f0f4f8;
+}
+.topbar .brand .sub {
+    font-size: 11px;
+    color: #7a8a9a;
+    font-weight: 400;
+    letter-spacing: 1px;
+}
+.topbar .status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: #7a8a9a;
+}
+.topbar .status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4caf50;
+    animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(76, 175, 80, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+.topbar .status .dot.warning { background: #ff9800; }
+.topbar .status .dot.danger { background: #f44336; }
+
+/* ===== HERO / INFO PANEL ===== */
+.hero {
+    background: #1a2128;
+    padding: 20px 24px;
+    border-bottom: 1px solid #2a3340;
+    display: grid;
     grid-template-columns: auto 1fr auto;
-    gap:28px;
-    align-items:end;
-  }
-  .hero .label{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; letter-spacing:0.08em;
-    color:var(--text-dim);
-    margin-bottom:6px;
-  }
-  .mag-readout{
-    font-family:'IBM Plex Mono', monospace;
-    font-weight:700;
-    font-size:clamp(64px, 12vw, 108px);
-    line-height:0.9;
-    color:var(--sig-high);
-    display:flex; align-items:flex-start; gap:6px;
-  }
-  .mag-readout .unit{ font-size:22px; margin-top:10px; color:var(--stone-dim); }
-  .hero-mid{ min-width:0; }
-  .hero-mid .wilayah{
-    font-size:clamp(18px,3vw,26px);
-    font-weight:600;
-    line-height:1.25;
-    margin:0 0 10px;
-    color:var(--stone);
-  }
-  .hero-meta{
-    display:flex; flex-wrap:wrap; gap:18px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12.5px;
-    color:var(--text-dim);
-  }
-  .hero-meta b{ color:var(--text); font-weight:600; }
-  .hero-flags{
-    display:flex; flex-direction:column; gap:8px; align-items:flex-end;
-    font-family:'IBM Plex Mono', monospace; font-size:11px;
-    text-align:right;
-  }
-  .flag{
-    border:1px solid var(--line);
-    padding:6px 10px;
-    color:var(--sig-mid);
-    white-space:nowrap;
-  }
-  .flag.safe{ color:var(--sig-low); }
+    gap: 24px;
+    align-items: start;
+}
+@media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; gap: 12px; }
+}
+.hero .mag-section .label {
+    font-size: 11px;
+    color: #7a8a9a;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.hero .mag-section .mag-value {
+    font-size: 72px;
+    font-weight: 700;
+    color: #f8c74a;
+    line-height: 1;
+    font-family: 'Courier New', monospace;
+}
+.hero .mag-section .mag-value .unit {
+    font-size: 24px;
+    color: #7a8a9a;
+    font-weight: 400;
+    margin-left: 4px;
+}
+.hero .info-mid .wilayah {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 4px 0 8px;
+    color: #f0f4f8;
+}
+.hero .info-mid .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    font-size: 13px;
+    color: #8a9ba8;
+}
+.hero .info-mid .meta b { color: #e8edf2; font-weight: 600; }
+.hero .info-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+}
+@media (max-width: 860px) {
+    .hero .info-right { align-items: flex-start; text-align: left; }
+}
+.hero .info-right .flag {
+    border: 1px solid #2a3340;
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 4px;
+    color: #f8c74a;
+}
+.hero .info-right .flag.safe { color: #4caf50; border-color: #4caf50; }
+.hero .info-right .flag.danger { color: #f44336; border-color: #f44336; }
 
-  /* ---------- main grid ---------- */
-  .layout{
-    display:grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap:1px;
-    background:var(--line);
-  }
-  @media (max-width: 880px){
-    .layout{ grid-template-columns: 1fr; }
-    .hero{ grid-template-columns: 1fr; }
-    .hero-flags{ align-items:flex-start; text-align:left; flex-direction:row; flex-wrap:wrap; }
-  }
+/* ===== MODE INDICATOR ===== */
+.mode-indicator {
+    padding: 4px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: #2a3340;
+    color: #7a8a9a;
+    border-radius: 3px;
+    display: inline-block;
+}
+.mode-indicator.test { background: #ff9800; color: #1a2128; }
+.mode-indicator.operasional { background: #4caf50; color: #1a2128; }
 
-  .panel{ background:var(--ink); }
-  .panel-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:12px 16px;
-    border-bottom:1px solid var(--line);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; letter-spacing:0.06em; color:var(--text-dim);
-  }
-  #map{ height:520px; width:100%; filter: brightness(0.92) contrast(1.05); }
+/* ===== LAYOUT ===== */
+.layout {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 0;
+    background: #0f1419;
+}
+@media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+}
 
-  .legend{
-    display:flex; gap:14px; padding:10px 16px; flex-wrap:wrap;
-    border-bottom:1px solid var(--line);
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim);
-  }
-  .legend i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+/* ===== MAP ===== */
+.map-container {
+    background: #1a2128;
+    border-right: 1px solid #2a3340;
+}
+@media (max-width: 860px) {
+    .map-container { border-right: none; border-bottom: 1px solid #2a3340; }
+}
+.map-container .panel-head {
+    padding: 10px 16px;
+    border-bottom: 1px solid #2a3340;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #7a8a9a;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+#map {
+    height: 480px;
+    width: 100%;
+    background: #0f1419;
+}
+.legend {
+    display: flex;
+    gap: 16px;
+    padding: 8px 16px;
+    border-bottom: 1px solid #2a3340;
+    font-size: 11px;
+    color: #8a9ba8;
+    flex-wrap: wrap;
+}
+.legend .dot-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+}
 
-  /* ---------- ticker list ---------- */
-  .ticker{
-    max-height:520px;
-    overflow-y:auto;
-  }
-  .quake-row{
-    display:grid;
-    grid-template-columns: 52px 1fr auto;
-    gap:12px;
-    padding:12px 16px;
-    border-bottom:1px solid var(--line);
-    cursor:pointer;
-    transition: background 0.15s ease;
-  }
-  .quake-row:hover{ background:var(--panel); }
-  .quake-mag{
-    font-family:'IBM Plex Mono', monospace;
-    font-weight:700; font-size:20px;
-    display:flex; align-items:center; justify-content:center;
-    border:1px solid var(--line);
-    height:40px;
-  }
-  .quake-info .loc{ font-size:13.5px; font-weight:500; margin-bottom:3px; color:var(--stone); }
-  .quake-info .meta{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim); }
-  .quake-time{
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim);
-    text-align:right; white-space:nowrap;
-  }
+/* ===== SIDE PANEL ===== */
+.side-panel {
+    background: #1a2128;
+}
+.side-panel .panel-head {
+    padding: 10px 16px;
+    border-bottom: 1px solid #2a3340;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #7a8a9a;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+.ticker {
+    max-height: 480px;
+    overflow-y: auto;
+}
+.ticker::-webkit-scrollbar { width: 5px; }
+.ticker::-webkit-scrollbar-track { background: #1a2128; }
+.ticker::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 3px; }
 
-  /* ---------- felt section ---------- */
-  .felt{
-    grid-column: 1 / -1;
-    background:var(--ink);
-    border-top:1px solid var(--line);
-  }
-  .felt-grid{
-    display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px,1fr));
-    gap:1px;
-    background:var(--line);
-  }
-  .felt-card{
-    background:var(--ink);
-    padding:14px 16px;
-  }
-  .felt-card .loc{ font-size:13px; font-weight:600; margin-bottom:6px; color:var(--stone); }
-  .felt-card .row{
-    display:flex; justify-content:space-between;
-    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-dim);
-    margin-bottom:3px;
-  }
-  .felt-card .row b{ color:var(--sig-mid); }
+.quake-row {
+    display: grid;
+    grid-template-columns: 50px 1fr auto;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #1f2830;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.quake-row:hover { background: #222c36; }
+.quake-row .mag-badge {
+    font-family: 'Courier New', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #2a3340;
+    border-radius: 4px;
+    height: 40px;
+}
+.quake-row .info .loc {
+    font-size: 14px;
+    font-weight: 500;
+    color: #e8edf2;
+    margin-bottom: 2px;
+}
+.quake-row .info .meta {
+    font-size: 11px;
+    color: #7a8a9a;
+}
+.quake-row .time {
+    font-size: 11px;
+    color: #7a8a9a;
+    text-align: right;
+    white-space: nowrap;
+}
 
-  footer{
-    padding:16px 20px 32px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    color:var(--text-dim);
-    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
-    border-top:1px solid var(--line);
-  }
-  footer a{ color:var(--text-dim); }
+/* ===== CHARTS ===== */
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: #2a3340;
+    margin-top: 1px;
+}
+@media (max-width: 860px) {
+    .charts-row { grid-template-columns: 1fr; }
+}
+.chart-box {
+    background: #1a2128;
+    padding: 12px 14px;
+}
+.chart-box .chart-title {
+    font-size: 11px;
+    color: #7a8a9a;
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+}
+.chart-box .chart-container {
+    width: 100%;
+    height: 160px;
+}
 
-  .empty-state{
-    padding:40px 16px; text-align:center;
-    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-dim);
-  }
-  .refresh-btn{
-    background:none; border:1px solid var(--line); color:var(--text-dim);
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px;
-    padding:5px 10px; cursor:pointer;
-  }
-  .refresh-btn:hover{ color:var(--text); border-color:var(--stone-dim); }
-  .refresh-btn:focus-visible, a:focus-visible, .quake-row:focus-visible{
-    outline:2px solid var(--sig-mid); outline-offset:2px;
-  }
+/* ===== FELT SECTION ===== */
+.felt-section {
+    background: #1a2128;
+    border-top: 1px solid #2a3340;
+}
+.felt-section .panel-head {
+    padding: 10px 16px;
+    border-bottom: 1px solid #2a3340;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #7a8a9a;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+.felt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1px;
+    background: #2a3340;
+}
+.felt-card {
+    background: #1a2128;
+    padding: 12px 16px;
+}
+.felt-card .loc {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e8edf2;
+    margin-bottom: 4px;
+}
+.felt-card .row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #7a8a9a;
+    padding: 2px 0;
+}
+.felt-card .row b { color: #f8c74a; font-weight: 600; }
 
-  @media (prefers-reduced-motion: reduce){
-    .dot{ animation:none; }
-  }
+/* ===== FOOTER ===== */
+.footer {
+    padding: 14px 20px 30px;
+    font-size: 11px;
+    color: #5a6a7a;
+    border-top: 1px solid #2a3340;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #0f1419;
+}
+.footer a { color: #7a8a9a; text-decoration: none; }
+.footer a:hover { color: #e8edf2; }
 
-  ::-webkit-scrollbar{ width:8px; }
-  ::-webkit-scrollbar-track{ background:var(--ink); }
-  ::-webkit-scrollbar-thumb{ background:var(--line); }
+/* ===== EMPTY STATE ===== */
+.empty-state {
+    padding: 40px 16px;
+    text-align: center;
+    color: #5a6a7a;
+    font-size: 13px;
+}
+
+/* ===== MODAL ===== */
+.modal-content {
+    background: #1a2128;
+    color: #e8edf2;
+    border: 1px solid #2a3340;
+    border-radius: 8px;
+}
+.modal-header {
+    border-bottom: 1px solid #2a3340;
+}
+.modal-header .btn-close {
+    filter: invert(1);
+}
+.modal-body {
+    padding: 20px;
+}
+.modal-body .detail-item {
+    display: flex;
+    padding: 6px 0;
+    border-bottom: 1px solid #1f2830;
+}
+.modal-body .detail-item .label {
+    width: 120px;
+    color: #7a8a9a;
+    font-size: 13px;
+}
+.modal-body .detail-item .value {
+    font-weight: 500;
+    font-size: 13px;
+}
+
+/* ===== UTILITY ===== */
+.text-muted { color: #7a8a9a; }
+.text-gold { color: #f8c74a; }
+.text-green { color: #4caf50; }
+.text-red { color: #f44336; }
+.mb-0 { margin-bottom: 0; }
+.mt-0 { margin-top: 0; }
+.p-0 { padding: 0; }
 </style>
 </head>
 <body>
 
+<!-- ===== PRELOADER ===== -->
+<div class="preloader" id="preloader">
+    <div class="loading">
+        <div class="Box">
+            <span></span><span></span><span></span>
+            <span></span><span></span><span></span>
+        </div>
+        <h2>INITIALIZING</h2>
+    </div>
+</div>
+
+<!-- ===== TOP BAR ===== -->
 <div class="topbar">
-  <div class="brand">
-    <h1>PANTAU GEMPA</h1>
-    <span class="sub">MONITOR SEISMIK INDONESIA</span>
-  </div>
-  <div class="status">
-    <span class="dot"></span>
-    <span id="statusText">MENGHUBUNGKAN KE BMKG…</span>
-  </div>
+    <div class="brand">
+        <h1>WRS-NTWC</h1>
+        <span class="sub">INDONESIA</span>
+    </div>
+    <div class="status">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">MENGHUBUNGKAN...</span>
+        <span class="mode-indicator" id="modeIndicator">OPERASIONAL</span>
+    </div>
 </div>
 
+<!-- ===== HERO ===== -->
 <div class="hero" id="hero">
-  <div>
-    <div class="label">MAGNITUDO TERAKHIR</div>
-    <div class="mag-readout"><span id="heroMag">–.–</span><span class="unit">SR</span></div>
-  </div>
-  <div class="hero-mid">
-    <div class="label">LOKASI</div>
-    <p class="wilayah" id="heroWilayah">Memuat data gempabumi terkini…</p>
-    <div class="hero-meta">
-      <span>WAKTU LOKAL &nbsp;<b id="heroTime">–</b></span>
-      <span>KEDALAMAN &nbsp;<b id="heroDepth">–</b></span>
-      <span>KOORDINAT &nbsp;<b id="heroCoord">–</b></span>
+    <div class="mag-section">
+        <div class="label">MAGNITUDO TERAKHIR</div>
+        <div class="mag-value" id="heroMag">--.<span class="unit">SR</span></div>
     </div>
-  </div>
-  <div class="hero-flags">
-    <div class="flag safe" id="heroPotensi">POTENSI: MEMUAT…</div>
-    <button class="refresh-btn" id="refreshBtn">↻ MUAT ULANG</button>
-  </div>
+    <div class="info-mid">
+        <div class="label">LOKASI</div>
+        <div class="wilayah" id="heroWilayah">Memuat data gempa terkini...</div>
+        <div class="meta">
+            <span>WAKTU <b id="heroTime">--</b></span>
+            <span>KEDALAMAN <b id="heroDepth">--</b></span>
+            <span>KOORDINAT <b id="heroCoord">--</b></span>
+        </div>
+    </div>
+    <div class="info-right">
+        <div class="flag" id="heroPotensi">POTENSI: MEMUAT...</div>
+        <button class="btn btn-sm btn-outline-secondary" id="refreshBtn" style="color:#7a8a9a;border-color:#2a3340;font-size:11px;">
+            <i class="fas fa-sync-alt"></i> MUAT ULANG
+        </button>
+    </div>
 </div>
 
+<!-- ===== LAYOUT ===== -->
 <div class="layout">
-  <div class="panel">
-    <div class="panel-head">
-      <span>PETA SEBARAN — GEMPA M2.0+ (30 HARI TERAKHIR)</span>
-      <span id="mapCount">0 TITIK</span>
-    </div>
-    <div class="legend">
-      <span><i style="background:var(--sig-high)"></i>&lt; 50 KM</span>
-      <span><i style="background:var(--sig-mid)"></i>50–150 KM</span>
-      <span><i style="background:var(--sig-low)"></i>&gt; 150 KM</span>
-    </div>
-    <div id="map"></div>
-  </div>
 
-  <div class="panel">
-    <div class="panel-head">
-      <span>LOG GEMPABUMI TERKINI — M2.0+</span>
-      <span id="listCount">—</span>
+    <!-- MAP -->
+    <div class="map-container">
+        <div class="panel-head">
+            <span><i class="fas fa-map-marked-alt"></i> PETA SEBARAN GEMPA</span>
+            <span id="mapCount">0 TITIK</span>
+        </div>
+        <div class="legend">
+            <span><span class="dot-indicator" style="background:#f44336;"></span>&lt; 50 KM</span>
+            <span><span class="dot-indicator" style="background:#ff9800;"></span>50–150 KM</span>
+            <span><span class="dot-indicator" style="background:#4caf50;"></span>&gt; 150 KM</span>
+            <span style="margin-left:auto;"><i class="fas fa-circle" style="color:#f8c74a;font-size:10px;"></i> Ukuran = Magnitudo</span>
+        </div>
+        <div id="map"></div>
     </div>
-    <div class="ticker" id="tickerList">
-      <div class="empty-state">Memuat data…</div>
-    </div>
-  </div>
 
-  <div class="felt">
+    <!-- SIDE PANEL -->
+    <div class="side-panel">
+        <div class="panel-head">
+            <span><i class="fas fa-list"></i> LOG GEMPA TERKINI</span>
+            <span id="listCount">--</span>
+        </div>
+        <div class="ticker" id="tickerList">
+            <div class="empty-state">Memuat data...</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ===== CHARTS ===== -->
+<div class="charts-row">
+    <div class="chart-box">
+        <div class="chart-title"><i class="fas fa-chart-pie"></i> KEDALAMAN GEMPA</div>
+        <div class="chart-container" id="pieChart"></div>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title"><i class="fas fa-chart-bar"></i> JUMLAH GEMPA PER BULAN</div>
+        <div class="chart-container" id="barChart"></div>
+    </div>
+    <div class="chart-box">
+        <div class="chart-title"><i class="fas fa-chart-scatter"></i> MAGNITUDO VS WAKTU</div>
+        <div class="chart-container" id="bubbleChart"></div>
+    </div>
+</div>
+
+<!-- ===== FELT SECTION ===== -->
+<div class="felt-section">
     <div class="panel-head">
-      <span>DIRASAKAN OLEH WARGA</span>
-      <span id="feltCount">—</span>
+        <span><i class="fas fa-users"></i> GEMPA DIRASAKAN</span>
+        <span id="feltCount">--</span>
     </div>
     <div class="felt-grid" id="feltGrid">
-      <div class="empty-state">Memuat data…</div>
+        <div class="empty-state">Memuat data...</div>
     </div>
-  </div>
 </div>
 
-<footer>
-  <span>Sumber data: <a href="https://data.bmkg.go.id/gempabumi/" target="_blank" rel="noopener">BMKG</a> (gempa terbaru &amp; dirasakan) · <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> (sebaran M2.0+). Diperbarui otomatis tiap 60 detik.</span>
-  <span id="lastUpdate">—</span>
-</footer>
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+    <span>
+        Sumber data: <a href="https://data.bmkg.go.id/gempabumi/" target="_blank">BMKG</a> · 
+        Data gempabumi terbuka · <a href="https://github.com/infoBMKG/data-gempabumi" target="_blank">GitHub</a>
+    </span>
+    <span id="lastUpdate">--</span>
+</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- ===== MODAL DETAIL ===== -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="color:#f8c74a;">DETAIL GEMPABUMI</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailBody">
+                <div class="detail-item"><span class="label">Magnitudo</span><span class="value" id="dMag">--</span></div>
+                <div class="detail-item"><span class="label">Waktu</span><span class="value" id="dTime">--</span></div>
+                <div class="detail-item"><span class="label">Lokasi</span><span class="value" id="dPlace">--</span></div>
+                <div class="detail-item"><span class="label">Koordinat</span><span class="value" id="dCoord">--</span></div>
+                <div class="detail-item"><span class="label">Kedalaman</span><span class="value" id="dDepth">--</span></div>
+                <div class="detail-item"><span class="label">Potensi Tsunami</span><span class="value" id="dPotensi">--</span></div>
+                <div class="detail-item"><span class="label">Dirasakan</span><span class="value" id="dDirasakan">--</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
 <script>
-const PROXIES = [
-  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-  (u) => u
-];
-const URLS = {
-  auto: 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json',
-  dirasakan: 'https://data.bmkg.go.id/DataMKG/TEWS/gempadirasakan.json'
+// ============================================================
+//  PRELOADER
+// ============================================================
+$(document).ready(function() {
+    setTimeout(function() {
+        $('#preloader').addClass('hide');
+    }, 1200);
+});
+
+// ============================================================
+//  CONFIG
+// ============================================================
+const API = {
+    auto: 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json',
+    terkini: 'https://data.bmkg.go.id/DataMKG/TEWS/gempaterkini.json',
+    dirasakan: 'https://data.bmkg.go.id/DataMKG/TEWS/gempadirasakan.json',
+    lastQL: 'https://bmkg-content-inatews.storage.googleapis.com/lastQL.json',
+    gempaQL: 'https://bmkg-content-inatews.storage.googleapis.com/gempaQL.json',
+    statPie: 'https://cdn.bmkg.go.id/stat-lingkaran.json',
+    statBar: 'https://cdn.bmkg.go.id/stat-grafik.json',
+    statBubble: 'https://cdn.bmkg.go.id/stat-mag.json'
 };
-// Wilayah Indonesia (bounding box) + magnitudo minimum 2.0 — BMKG hanya menyediakan feed
-// publik untuk M5.0+, jadi untuk mendeteksi gempa kecil (M2.0+) dipakai feed USGS yang
-// mencakup jaringan seismik global termasuk event kecil di Indonesia, dan sudah CORS-enabled.
-function buildUSGSUrl(){
-  const start = new Date(Date.now() - 30*24*3600*1000).toISOString();
-  const params = new URLSearchParams({
-    format: 'geojson',
-    starttime: start,
-    minmagnitude: '2',
-    limit: '200',
-    orderby: 'time',
-    minlatitude: '-11',
-    maxlatitude: '6',
-    minlongitude: '95',
-    maxlongitude: '141'
-  });
-  return `https://earthquake.usgs.gov/fdsnws/event/1/query?${params.toString()}`;
+
+// ============================================================
+//  MAP
+// ============================================================
+let map, markerLayer;
+let markers = {};
+
+function initMap() {
+    map = L.map('map', { zoomControl: true }).setView([-2.5, 118], 5);
+    
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; CartoDB',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Esri satellite overlay
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Esri'
+    }).addTo(map);
+
+    markerLayer = L.layerGroup().addTo(map);
 }
 
-async function fetchWithFallback(url){
-  let lastErr;
-  for(const wrap of PROXIES){
-    try{
-      const res = await fetch(wrap(url), { cache: 'no-store' });
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return await res.json();
-    }catch(e){ lastErr = e; }
-  }
-  throw lastErr;
+function getDepthColor(depth) {
+    if (depth <= 50) return '#f44336';
+    if (depth <= 150) return '#ff9800';
+    return '#4caf50';
 }
 
-// USGS sudah mendukung CORS langsung, jadi dicoba dulu tanpa proxy sebelum fallback.
-async function fetchUSGS(url){
-  try{
-    const res = await fetch(url, { cache: 'no-store' });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  }catch(e){
-    return await fetchWithFallback(url);
-  }
-}
-
-function normalizeUSGS(geojson){
-  return (geojson.features || [])
-    .map(f => {
-      const [lon, lat, depth] = f.geometry.coordinates;
-      return {
-        id: f.id,
-        mag: f.properties.mag,
-        place: f.properties.place || 'Lokasi tidak diketahui',
-        depthKm: depth,
-        lat, lon,
-        timeMs: f.properties.time
-      };
-    })
-    .filter(q => q.mag !== null && !isNaN(q.mag) && Number.isFinite(q.lat) && Number.isFinite(q.lon));
-}
-
-function relativeTimeMs(ms){
-  const diffMs = Date.now() - ms;
-  const mins = Math.floor(diffMs / 60000);
-  if(mins < 1) return 'baru saja';
-  if(mins < 60) return mins + ' menit lalu';
-  const hrs = Math.floor(mins/60);
-  if(hrs < 24) return hrs + ' jam lalu';
-  const days = Math.floor(hrs/24);
-  return days + ' hari lalu';
-}
-
-function fmtTimeWIB(ms){
-  return new Date(ms).toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta', hour:'2-digit', minute:'2-digit',
-    day:'2-digit', month:'2-digit', year:'numeric'
-  });
-}
-
-// Terjemahan arah mata angin ke Bahasa Indonesia, tanpa singkatan, diawali kata "arah".
-const COMPASS_ID = {
-  N:'Utara', NNE:'Utara Timur Laut', NE:'Timur Laut', ENE:'Timur Timur Laut',
-  E:'Timur', ESE:'Timur Tenggara', SE:'Tenggara', SSE:'Selatan Tenggara',
-  S:'Selatan', SSW:'Selatan Barat Daya', SW:'Barat Daya', WSW:'Barat Barat Daya',
-  W:'Barat', WNW:'Barat Barat Laut', NW:'Barat Laut', NNW:'Utara Barat Laut'
-};
-const COMPASS_WORDS_ID = ['Utara','Selatan','Timur','Barat','Laut','Daya','Tenggara'];
-
-// Perkiraan cakupan wilayah 38 provinsi Indonesia (daerah tingkat 1) berbasis kotak
-// koordinat (bounding box). Ini adalah pendekatan sederhana untuk menentukan provinsi
-// dari titik episenter — bukan batas administratif presisi tinggi, tapi cukup akurat
-// untuk keperluan pelaporan lokasi gempa. Diurutkan dari wilayah kecil/spesifik ke besar
-// agar percocokan pertama pada area tumpang-tindih lebih tepat.
-const PROVINSI_BBOX = [
-  { nama:'DKI Jakarta', latMin:-6.4, latMax:-5.9, lonMin:106.6, lonMax:107.0 },
-  { nama:'DI Yogyakarta', latMin:-8.3, latMax:-7.5, lonMin:110.0, lonMax:110.8 },
-  { nama:'Gorontalo', latMin:-1.2, latMax:1.2, lonMin:121.2, lonMax:123.6 },
-  { nama:'Kepulauan Riau', latMin:-1.0, latMax:4.9, lonMin:103.3, lonMax:109.7 },
-  { nama:'Kepulauan Bangka Belitung', latMin:-4.0, latMax:-1.0, lonMin:105.0, lonMax:108.5 },
-  { nama:'Banten', latMin:-7.1, latMax:-5.7, lonMin:105.0, lonMax:106.7 },
-  { nama:'Bali', latMin:-8.9, latMax:-8.0, lonMin:114.4, lonMax:115.7 },
-  { nama:'Kalimantan Utara', latMin:1.9, latMax:4.4, lonMin:115.0, lonMax:118.2 },
-  { nama:'Aceh', latMin:2.0, latMax:6.0, lonMin:95.0, lonMax:98.5 },
-  { nama:'Sumatera Utara', latMin:1.0, latMax:4.5, lonMin:97.0, lonMax:100.0 },
-  { nama:'Sumatera Barat', latMin:-3.5, latMax:0.5, lonMin:98.4, lonMax:101.5 },
-  { nama:'Riau', latMin:-1.2, latMax:2.5, lonMin:100.0, lonMax:103.5 },
-  { nama:'Jambi', latMin:-3.0, latMax:-0.5, lonMin:101.0, lonMax:104.5 },
-  { nama:'Sumatera Selatan', latMin:-5.0, latMax:-1.0, lonMin:102.0, lonMax:106.0 },
-  { nama:'Bengkulu', latMin:-5.5, latMax:-2.0, lonMin:101.0, lonMax:103.5 },
-  { nama:'Lampung', latMin:-6.0, latMax:-3.4, lonMin:103.5, lonMax:106.0 },
-  { nama:'Jawa Barat', latMin:-7.8, latMax:-5.9, lonMin:106.3, lonMax:108.9 },
-  { nama:'Jawa Tengah', latMin:-8.2, latMax:-5.9, lonMin:108.5, lonMax:111.5 },
-  { nama:'Jawa Timur', latMin:-8.8, latMax:-6.7, lonMin:111.0, lonMax:114.5 },
-  { nama:'Nusa Tenggara Barat', latMin:-9.1, latMax:-8.0, lonMin:115.7, lonMax:119.4 },
-  { nama:'Nusa Tenggara Timur', latMin:-11.0, latMax:-8.0, lonMin:118.9, lonMax:125.2 },
-  { nama:'Kalimantan Barat', latMin:-3.1, latMax:2.0, lonMin:108.5, lonMax:114.9 },
-  { nama:'Kalimantan Tengah', latMin:-3.6, latMax:0.9, lonMin:110.9, lonMax:115.9 },
-  { nama:'Kalimantan Selatan', latMin:-4.3, latMax:-1.2, lonMin:114.3, lonMax:116.6 },
-  { nama:'Kalimantan Timur', latMin:-2.6, latMax:2.6, lonMin:115.0, lonMax:119.3 },
-  { nama:'Sulawesi Utara', latMin:-1.0, latMax:5.0, lonMin:121.0, lonMax:127.5 },
-  { nama:'Sulawesi Tengah', latMin:-3.5, latMax:2.0, lonMin:119.0, lonMax:124.5 },
-  { nama:'Sulawesi Barat', latMin:-3.9, latMax:-0.5, lonMin:118.6, lonMax:119.9 },
-  { nama:'Sulawesi Selatan', latMin:-8.0, latMax:-1.9, lonMin:118.6, lonMax:121.8 },
-  { nama:'Sulawesi Tenggara', latMin:-6.2, latMax:-2.9, lonMin:120.4, lonMax:124.2 },
-  { nama:'Maluku Utara', latMin:-3.5, latMax:3.5, lonMin:124.0, lonMax:129.5 },
-  { nama:'Maluku', latMin:-9.0, latMax:-2.0, lonMin:125.0, lonMax:135.0 },
-  { nama:'Papua Barat Daya', latMin:-3.5, latMax:0.6, lonMin:129.5, lonMax:132.3 },
-  { nama:'Papua Barat', latMin:-4.5, latMax:0.2, lonMin:132.3, lonMax:135.0 },
-  { nama:'Papua Tengah', latMin:-5.5, latMax:-2.4, lonMin:135.0, lonMax:137.6 },
-  { nama:'Papua Pegunungan', latMin:-6.0, latMax:-3.0, lonMin:137.6, lonMax:141.0 },
-  { nama:'Papua Selatan', latMin:-9.5, latMax:-5.0, lonMin:137.0, lonMax:141.5 },
-  { nama:'Papua', latMin:-3.0, latMax:1.0, lonMin:137.5, lonMax:141.5 }
-];
-
-function getProvinsi(lat, lon){
-  if(!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  const hit = PROVINSI_BBOX.find(p => lat >= p.latMin && lat <= p.latMax && lon >= p.lonMin && lon <= p.lonMax);
-  return hit ? hit.nama : null;
-}
-
-// Mengganti akhiran nama negara generik ("Indonesia") dengan nama provinsi (daerah
-// tingkat 1) hasil resolusi koordinat episenter — sesuai kebijakan redaksi.
-function gantiIndonesiaDenganProvinsi(text, lat, lon){
-  if(!text) return text;
-  if(/,\s*Indonesia\s*$/i.test(text)){
-    const provinsi = getProvinsi(lat, lon);
-    if(provinsi) return text.replace(/,\s*Indonesia\s*$/i, `, ${provinsi}`);
-  }
-  return text;
-}
-
-function terjemahArahMataAngin(text){
-  if(!text) return text;
-  // Format USGS, contoh: "18 km SE of Bengkulu, Indonesia"
-  const usgsMatch = text.match(/^(\d+\s*km)\s+([NSEW]{1,3})\s+of\s+(.+)$/i);
-  if(usgsMatch){
-    const [, dist, dirAbbr, place] = usgsMatch;
-    const dirID = COMPASS_ID[dirAbbr.toUpperCase()];
-    if(dirID) return `${dist} arah ${dirID} dari ${place}`;
-  }
-  // Format BMKG, contoh: "24 km BaratDaya MENTAWAI-SUMBAR"
-  const bmkgMatch = text.match(/^(\d+\s*km)\s+([A-Za-z]+)\s+(.+)$/);
-  if(bmkgMatch){
-    const [, dist, dirWord, place] = bmkgMatch;
-    const spaced = dirWord.replace(/([a-z])([A-Z])/g, '$1 $2');
-    const isDirection = spaced.split(' ').every(w => COMPASS_WORDS_ID.includes(w));
-    if(isDirection) return `${dist} arah ${spaced} ${place}`;
-  }
-  return text;
-}
-
-// Gabungan: terjemahkan arah mata angin lalu ganti "Indonesia" dengan nama provinsi
-// yang sebenarnya berdasarkan koordinat episenter.
-function formatLokasiGempa(text, lat, lon){
-  return gantiIndonesiaDenganProvinsi(terjemahArahMataAngin(text), lat, lon);
-}
-
-function depthColor(km){
-  if(km <= 50) return getComputedStyle(document.documentElement).getPropertyValue('--sig-high').trim();
-  if(km <= 150) return getComputedStyle(document.documentElement).getPropertyValue('--sig-mid').trim();
-  return getComputedStyle(document.documentElement).getPropertyValue('--sig-low').trim();
-}
-
-function parseCoord(coordStr){
-  const [lat, lon] = coordStr.split(',').map(s => parseFloat(s.trim()));
-  return { lat, lon };
-}
-
-function relativeTime(dateTimeStr){
-  // BMKG DateTime format: YYYY-MM-DDTHH:mm:ss+07:00
-  const then = new Date(dateTimeStr);
-  const diffMs = Date.now() - then.getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if(mins < 1) return 'baru saja';
-  if(mins < 60) return mins + ' menit lalu';
-  const hrs = Math.floor(mins/60);
-  if(hrs < 24) return hrs + ' jam lalu';
-  const days = Math.floor(hrs/24);
-  return days + ' hari lalu';
-}
-
-let map, markerLayer, markersById = {};
-function initMap(){
-  map = L.map('map', { zoomControl:true, attributionControl:false }).setView([-2.5, 118], 5);
-  // Peta hibrid Esri: citra satelit + layer referensi (batas wilayah & label) di atasnya.
-  // Keduanya ditambahkan langsung tanpa kontrol layer — tidak ada opsi ganti peta.
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, minZoom: 3,
-    attribution: 'Esri, Maxar, Earthstar Geographics'
-  }).addTo(map);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, minZoom: 3
-  }).addTo(map);
-  markerLayer = L.layerGroup().addTo(map);
-}
-
-function plotQuakes(list){
-  markerLayer.clearLayers();
-  markersById = {};
-  list.forEach(q => {
-    const color = depthColor(q.depthKm);
-    const marker = L.circleMarker([q.lat, q.lon], {
-      radius: Math.max(4, q.mag * 2.4),
-      color: color,
-      weight: 1.2,
-      fillColor: color,
-      fillOpacity: 0.35
-    }).bindPopup(
-      `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
-         <b>M${q.mag.toFixed(1)}</b> — ${formatLokasiGempa(q.place, q.lat, q.lon)}<br>
-         Kedalaman: ${Math.round(q.depthKm)} km<br>
-         Waktu: ${fmtTimeWIB(q.timeMs)} WIB
-       </div>`
-    );
-    // Klik langsung pada titik di peta juga memperdalam zoom ke lokasi tersebut.
-    marker.on('click', () => {
-      map.flyTo([q.lat, q.lon], 13, { duration: 1.1 });
+function plotQuakes(list) {
+    markerLayer.clearLayers();
+    markers = {};
+    
+    list.forEach(q => {
+        const color = getDepthColor(q.depthKm);
+        const radius = Math.max(3, q.mag * 2.2);
+        
+        const marker = L.circleMarker([q.lat, q.lon], {
+            radius: radius,
+            color: color,
+            weight: 1.2,
+            fillColor: color,
+            fillOpacity: 0.35
+        }).bindPopup(`
+            <div style="font-family:monospace;font-size:12px;line-height:1.6;color:#333;">
+                <b style="color:#f44336;">M${q.mag.toFixed(1)}</b> — ${q.place}<br>
+                Kedalaman: ${Math.round(q.depthKm)} km<br>
+                Waktu: ${moment(q.timeMs).tz('Asia/Jakarta').format('DD MMM YYYY HH:mm:ss')} WIB
+            </div>
+        `);
+        
+        marker.on('click', () => {
+            map.flyTo([q.lat, q.lon], 12, { duration: 1 });
+        });
+        
+        markerLayer.addLayer(marker);
+        markers[q.id] = marker;
     });
-    markerLayer.addLayer(marker);
-    markersById[q.id] = marker;
-  });
-  document.getElementById('mapCount').textContent = list.length + ' TITIK';
+    
+    document.getElementById('mapCount').textContent = list.length + ' TITIK';
 }
 
-function renderHero(g){
-  document.getElementById('heroMag').textContent = g.Magnitude;
-  const { lat: heroLat, lon: heroLon } = parseCoord(g.Coordinates);
-  document.getElementById('heroWilayah').textContent = formatLokasiGempa(g.Wilayah, heroLat, heroLon);
-  document.getElementById('heroTime').textContent = `${g.Tanggal}, ${g.Jam}`;
-  document.getElementById('heroDepth').textContent = g.Kedalaman;
-  document.getElementById('heroCoord').textContent = g.Coordinates;
-  const mag = parseFloat(g.Magnitude);
-  const readout = document.getElementById('heroMag');
-  readout.style.color = mag >= 5 ? 'var(--sig-high)' : (mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
-  const potensi = document.getElementById('heroPotensi');
-  const teksPotensi = g.Potensi || 'Tidak berpotensi tsunami';
-  potensi.textContent = 'POTENSI: ' + teksPotensi.toUpperCase();
-  potensi.classList.toggle('safe', /tidak/i.test(teksPotensi));
+// ============================================================
+//  FETCH HELPERS
+// ============================================================
+async function fetchJSON(url) {
+    const res = await fetch(url + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
 }
 
-function renderTicker(list){
-  const el = document.getElementById('tickerList');
-  if(!list.length){
-    el.innerHTML = '<div class="empty-state">Belum ada data. Coba muat ulang.</div>';
-    return;
-  }
-  el.innerHTML = '';
-  list.forEach(q => {
-    const color = q.mag >= 5 ? 'var(--sig-high)' : (q.mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
-    const row = document.createElement('div');
-    row.className = 'quake-row';
-    row.tabIndex = 0;
-    row.innerHTML = `
-      <div class="quake-mag" style="color:${color};border-color:${color}">${q.mag.toFixed(1)}</div>
-      <div class="quake-info">
-        <div class="loc">${formatLokasiGempa(q.place, q.lat, q.lon)}</div>
-        <div class="meta">KEDALAMAN ${Math.round(q.depthKm)} KM · ${q.lat.toFixed(2)}, ${q.lon.toFixed(2)}</div>
-      </div>
-      <div class="quake-time">${relativeTimeMs(q.timeMs)}<br>${fmtTimeWIB(q.timeMs)}</div>
-    `;
-    row.addEventListener('click', () => {
-      map.flyTo([q.lat, q.lon], 13, { duration: 1.1 });
-      const marker = markersById[q.id];
-      if(marker) map.once('moveend', () => marker.openPopup());
+function parseCoord(coordStr) {
+    if (!coordStr) return { lat: 0, lon: 0 };
+    const parts = coordStr.split(',').map(s => parseFloat(s.trim()));
+    return { lat: parts[0] || 0, lon: parts[1] || 0 };
+}
+
+function formatPlace(place) {
+    if (!place) return 'Lokasi tidak diketahui';
+    return place;
+}
+
+// ============================================================
+//  RENDER FUNCTIONS
+// ============================================================
+function renderHero(g) {
+    if (!g) return;
+    document.getElementById('heroMag').innerHTML = g.Magnitude + '<span class="unit">SR</span>';
+    document.getElementById('heroWilayah').textContent = formatPlace(g.Wilayah);
+    document.getElementById('heroTime').textContent = g.Tanggal + ' ' + g.Jam;
+    document.getElementById('heroDepth').textContent = g.Kedalaman;
+    document.getElementById('heroCoord').textContent = g.Coordinates;
+    
+    const potensi = document.getElementById('heroPotensi');
+    const teks = g.Potensi || 'Tidak berpotensi tsunami';
+    potensi.textContent = 'POTENSI: ' + teks.toUpperCase();
+    potensi.className = 'flag';
+    if (/tidak/i.test(teks)) potensi.classList.add('safe');
+    else if (/tsunami/i.test(teks)) potensi.classList.add('danger');
+}
+
+function renderTicker(list) {
+    const el = document.getElementById('tickerList');
+    if (!list || !list.length) {
+        el.innerHTML = '<div class="empty-state">Belum ada data gempa</div>';
+        document.getElementById('listCount').textContent = '0';
+        return;
+    }
+    
+    el.innerHTML = '';
+    list.slice(0, 30).forEach(q => {
+        const color = q.mag >= 5 ? '#f44336' : (q.mag >= 4 ? '#ff9800' : '#f8c74a');
+        const row = document.createElement('div');
+        row.className = 'quake-row';
+        row.innerHTML = `
+            <div class="mag-badge" style="color:${color};border-color:${color};">${q.mag.toFixed(1)}</div>
+            <div class="info">
+                <div class="loc">${formatPlace(q.place)}</div>
+                <div class="meta">Kedalaman ${Math.round(q.depthKm)} km · ${q.lat.toFixed(2)}, ${q.lon.toFixed(2)}</div>
+            </div>
+            <div class="time">${moment(q.timeMs).tz('Asia/Jakarta').format('DD MMM HH:mm')}<br>WIB</div>
+        `;
+        row.addEventListener('click', () => {
+            map.flyTo([q.lat, q.lon], 12, { duration: 1 });
+            if (markers[q.id]) {
+                setTimeout(() => markers[q.id].openPopup(), 200);
+            }
+            showDetail(q);
+        });
+        el.appendChild(row);
     });
-    el.appendChild(row);
-  });
-  document.getElementById('listCount').textContent = list.length + ' EVENT';
+    document.getElementById('listCount').textContent = list.length + ' EVENT';
 }
 
-function renderFelt(list){
-  const el = document.getElementById('feltGrid');
-  if(!list.length){
-    el.innerHTML = '<div class="empty-state">Belum ada data dirasakan.</div>';
-    return;
-  }
-  el.innerHTML = '';
-  list.slice(0,9).forEach(q => {
-    const card = document.createElement('div');
-    card.className = 'felt-card';
-    const { lat: fLat, lon: fLon } = parseCoord(q.Coordinates || '');
-    card.innerHTML = `
-      <div class="loc">${formatLokasiGempa(q.Wilayah, fLat, fLon)}</div>
-      <div class="row"><span>Magnitudo</span><b>${q.Magnitude}</b></div>
-      <div class="row"><span>Kedalaman</span><span>${q.Kedalaman}</span></div>
-      <div class="row"><span>Dirasakan</span><span>${q.Dirasakan || '–'}</span></div>
-      <div class="row"><span>Waktu</span><span>${q.Jam}</span></div>
-    `;
-    el.appendChild(card);
-  });
-  document.getElementById('feltCount').textContent = Math.min(list.length,9) + ' LAPORAN';
+function renderFelt(list) {
+    const el = document.getElementById('feltGrid');
+    if (!list || !list.length) {
+        el.innerHTML = '<div class="empty-state">Belum ada data gempa dirasakan</div>';
+        document.getElementById('feltCount').textContent = '0';
+        return;
+    }
+    
+    el.innerHTML = '';
+    list.slice(0, 12).forEach(q => {
+        const card = document.createElement('div');
+        card.className = 'felt-card';
+        const coord = parseCoord(q.Coordinates);
+        card.innerHTML = `
+            <div class="loc">${formatPlace(q.Wilayah)}</div>
+            <div class="row"><span>Magnitudo</span><b>${q.Magnitude}</b></div>
+            <div class="row"><span>Kedalaman</span><span>${q.Kedalaman}</span></div>
+            <div class="row"><span>Dirasakan</span><span>${q.Dirasakan || '—'}</span></div>
+            <div class="row"><span>Waktu</span><span>${q.Jam}</span></div>
+        `;
+        el.appendChild(card);
+    });
+    document.getElementById('feltCount').textContent = Math.min(list.length, 12) + ' LAPORAN';
 }
 
-async function loadAll(){
-  const statusText = document.getElementById('statusText');
-  statusText.textContent = 'MEMPERBARUI DATA…';
-  try{
-    const [autoData, usgsData, dirasakanData] = await Promise.all([
-      fetchWithFallback(URLS.auto),
-      fetchUSGS(buildUSGSUrl()),
-      fetchWithFallback(URLS.dirasakan)
-    ]);
-
-    const gEvent = autoData.Infogempa.gempa;
-    renderHero(gEvent);
-
-    const quakeList = normalizeUSGS(usgsData);
-    plotQuakes(quakeList);
-    renderTicker(quakeList);
-
-    const dirasakanList = dirasakanData.Infogempa.gempa;
-    renderFelt(dirasakanList);
-
-    statusText.textContent = 'TERHUBUNG — DATA BMKG LIVE';
-    document.getElementById('lastUpdate').textContent =
-      'Terakhir diperbarui: ' + new Date().toLocaleTimeString('id-ID') + ' WIB';
-  }catch(e){
-    statusText.textContent = 'GAGAL MEMUAT DATA — PERIKSA KONEKSI';
-    console.error(e);
-  }
+function showDetail(q) {
+    document.getElementById('dMag').textContent = 'M ' + q.mag.toFixed(1);
+    document.getElementById('dTime').textContent = moment(q.timeMs).tz('Asia/Jakarta').format('DD MMM YYYY HH:mm:ss') + ' WIB';
+    document.getElementById('dPlace').textContent = formatPlace(q.place);
+    document.getElementById('dCoord').textContent = q.lat.toFixed(4) + ', ' + q.lon.toFixed(4);
+    document.getElementById('dDepth').textContent = Math.round(q.depthKm) + ' km';
+    document.getElementById('dPotensi').textContent = q.potensi || 'Tidak berpotensi tsunami';
+    document.getElementById('dDirasakan').textContent = q.dirasakan || '—';
+    
+    const modal = new bootstrap.Modal(document.getElementById('detailModal'));
+    modal.show();
 }
 
-initMap();
-loadAll();
-setInterval(loadAll, 60000);
-document.getElementById('refreshBtn').addEventListener('click', loadAll);
+// ============================================================
+//  CHARTS
+// ============================================================
+function renderPieChart(data) {
+    const props = data.features?.[0]?.properties || {};
+    const series = [];
+    for (let i = 1; i <= 6; i++) {
+        const key = 'kel' + i;
+        if (props[key] && Array.isArray(props[key]) && props[key].length >= 2) {
+            series.push({ name: props[key][1], y: parseFloat(props[key][0]) || 0 });
+        }
+    }
+    if (!series.length) {
+        document.getElementById('pieChart').innerHTML = '<p class="text-muted text-center" style="padding-top:40px;">Data tidak tersedia</p>';
+        return;
+    }
+    Highcharts.chart('pieChart', {
+        chart: { type: 'pie', backgroundColor: 'transparent' },
+        title: { text: '' },
+        tooltip: { pointFormat: '{series.name}: <b>{point.y}</b> ({point.percentage:.1f}%)' },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: { enabled: false },
+                colors: ['#f44336', '#ff9800', '#f8c74a', '#4caf50', '#2196f3', '#9c27b0']
+            }
+        },
+        series: [{ name: 'Jumlah', colorByPoint: true, data: series }],
+        credits: { enabled: false }
+    });
+}
+
+function renderBarChart(data) {
+    const props = data.features?.[0]?.properties || {};
+    const categories = [];
+    const values = [];
+    for (let i = 1; i <= 36; i++) {
+        const key = 'bulan' + i;
+        if (props[key]) {
+            const parts = props[key].split(',');
+            if (parts.length >= 2) {
+                values.push(parseFloat(parts[0]) || 0);
+                categories.push(parts[1] || '');
+            }
+        }
+    }
+    if (!categories.length) {
+        document.getElementById('barChart').innerHTML = '<p class="text-muted text-center" style="padding-top:40px;">Data tidak tersedia</p>';
+        return;
+    }
+    Highcharts.chart('barChart', {
+        chart: { type: 'column', backgroundColor: 'transparent' },
+        title: { text: '' },
+        xAxis: {
+            categories: categories,
+            labels: { rotation: -30, style: { color: '#7a8a9a', fontSize: '8px' } },
+            gridLineColor: '#2a3340'
+        },
+        yAxis: {
+            title: { text: 'Jumlah', style: { color: '#7a8a9a', fontSize: '10px' } },
+            gridLineColor: '#2a3340',
+            labels: { style: { color: '#7a8a9a', fontSize: '9px' } }
+        },
+        tooltip: { shared: true },
+        series: [{ name: 'Jumlah', data: values, color: '#f8c74a' }],
+        credits: { enabled: false }
+    });
+}
+
+function renderBubbleChart(data) {
+    const features = data.features || [];
+    if (!features.length) {
+        document.getElementById('bubbleChart').innerHTML = '<p class="text-muted text-center" style="padding-top:40px;">Data tidak tersedia</p>';
+        return;
+    }
+    const points = features.map(f => {
+        const p = f.properties;
+        const t = new Date(p.time).getTime();
+        const mag = parseFloat(p.mag) || 0;
+        const depth = parseFloat(p.depth) || 0;
+        return {
+            x: t,
+            y: mag,
+            z: mag * 0.8 + 2,
+            depth: depth,
+            mag: mag.toFixed(1),
+            time: moment(t).format('DD MMM YY HH:mm')
+        };
+    });
+    Highcharts.chart('bubbleChart', {
+        chart: { type: 'bubble', backgroundColor: 'transparent', zoomType: 'xy' },
+        title: { text: '' },
+        xAxis: {
+            type: 'datetime',
+            labels: { format: '{value:%b %y}', style: { color: '#7a8a9a', fontSize: '8px' } },
+            gridLineColor: '#2a3340'
+        },
+        yAxis: {
+            title: { text: 'Magnitudo', style: { color: '#7a8a9a', fontSize: '10px' } },
+            min: 0,
+            gridLineColor: '#2a3340',
+            labels: { style: { color: '#7a8a9a', fontSize: '9px' } }
+        },
+        tooltip: {
+            pointFormat: '<b>M {point.mag}</b><br>Kedalaman: {point.depth} km<br>{point.time}'
+        },
+        series: [{
+            data: points,
+            color: '#f8c74a',
+            marker: {
+                fillColor: '#f8c74a',
+                lineColor: '#2a3340',
+                lineWidth: 0.5
+            }
+        }],
+        credits: { enabled: false }
+    });
+}
+
+// ============================================================
+//  MAIN LOAD
+// ============================================================
+async function loadAll() {
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+    statusText.textContent = 'MEMPERBARUI DATA...';
+    statusDot.className = 'dot warning';
+    
+    try {
+        // 1. Auto gempa (terbaru)
+        const auto = await fetchJSON(API.auto);
+        const gEvent = auto.Infogempa?.gempa;
+        if (gEvent) renderHero(gEvent);
+        
+        // 2. LastQL (historis untuk peta)
+        let quakeList = [];
+        try {
+            const lastQL = await fetchJSON(API.lastQL);
+            quakeList = (lastQL.features || []).map(f => {
+                const [lon, lat, depth] = f.geometry.coordinates;
+                return {
+                    id: f.id || f.properties?.id || Math.random().toString(36),
+                    mag: parseFloat(f.properties?.mag) || 0,
+                    place: f.properties?.place || 'Lokasi tidak diketahui',
+                    depthKm: depth || 0,
+                    lat: lat || 0,
+                    lon: lon || 0,
+                    timeMs: f.properties?.time || Date.now(),
+                    potensi: f.properties?.potensi || '',
+                    dirasakan: f.properties?.dirasakan || ''
+                };
+            }).filter(q => q.mag > 0 && Number.isFinite(q.lat));
+        } catch(e) {
+            // Fallback ke gempaQL
+            const gempaQL = await fetchJSON(API.gempaQL);
+            quakeList = (gempaQL.features || []).map(f => {
+                const [lon, lat, depth] = f.geometry.coordinates;
+                return {
+                    id: f.id || Math.random().toString(36),
+                    mag: parseFloat(f.properties?.mag) || 0,
+                    place: f.properties?.place || 'Lokasi tidak diketahui',
+                    depthKm: depth || 0,
+                    lat: lat || 0,
+                    lon: lon || 0,
+                    timeMs: f.properties?.time || Date.now(),
+                    potensi: f.properties?.potensi || '',
+                    dirasakan: f.properties?.dirasakan || ''
+                };
+            }).filter(q => q.mag > 0 && Number.isFinite(q.lat));
+        }
+        
+        // Urutkan dari terbaru
+        quakeList.sort((a, b) => b.timeMs - a.timeMs);
+        plotQuakes(quakeList);
+        renderTicker(quakeList);
+        
+        // 3. Dirasakan
+        try {
+            const dirasakan = await fetchJSON(API.dirasakan);
+            const feltList = dirasakan.Infogempa?.gempa || [];
+            renderFelt(feltList);
+        } catch(e) {
+            renderFelt([]);
+        }
+        
+        // 4. Charts
+        try {
+            const pie = await fetchJSON(API.statPie);
+            renderPieChart(pie);
+        } catch(e) { /* fallback */ }
+        
+        try {
+            const bar = await fetchJSON(API.statBar);
+            renderBarChart(bar);
+        } catch(e) { /* fallback */ }
+        
+        try {
+            const bubble = await fetchJSON(API.statBubble);
+            renderBubbleChart(bubble);
+        } catch(e) { /* fallback */ }
+        
+        statusText.textContent = 'TERHUBUNG — DATA BMKG LIVE';
+        statusDot.className = 'dot';
+        document.getElementById('lastUpdate').textContent = 
+            'Diperbarui: ' + moment().tz('Asia/Jakarta').format('DD MMM YYYY HH:mm:ss') + ' WIB';
+            
+    } catch(e) {
+        console.error(e);
+        statusText.textContent = 'GAGAL MEMUAT DATA — COBA LAGI';
+        statusDot.className = 'dot danger';
+    }
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+$(document).ready(function() {
+    initMap();
+    loadAll();
+    setInterval(loadAll, 60000);
+    document.getElementById('refreshBtn').addEventListener('click', loadAll);
+});
 </script>
 </body>
 </html>
