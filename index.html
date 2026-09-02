@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PANTAU GEMPA — Monitor Seismik Indonesia</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0F1416;
+    --panel:#161E21;
+    --panel-2:#1C262A;
+    --line: #2C3A3E;
+    --stone:#E7E1D3;
+    --stone-dim:#B9B2A0;
+    --text:#EDE8DC;
+    --text-dim:#8FA0A3;
+    --sig-high:#C1440E;
+    --sig-mid:#D9A441;
+    --sig-low:#4A8B7C;
+    --sig-high-glow: rgba(193,68,14,0.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Space Grotesk', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 20px;
+    border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:50;
+    background:rgba(15,20,22,0.92);
+    backdrop-filter: blur(6px);
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand h1{
+    font-size:18px; letter-spacing:0.02em; margin:0; font-weight:700;
+  }
+  .brand span.sub{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; color:var(--text-dim);
+  }
+  .status{
+    display:flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; color:var(--sig-low);
+  }
+  .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--sig-low);
+    box-shadow:0 0 0 0 rgba(74,139,124,0.6);
+    animation:pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot{
+    0%{box-shadow:0 0 0 0 rgba(74,139,124,0.5);}
+    70%{box-shadow:0 0 0 6px rgba(74,139,124,0);}
+    100%{box-shadow:0 0 0 0 rgba(74,139,124,0);}
+  }
+
+  /* ---------- hero ---------- */
+  .hero{
+    border-bottom:1px solid var(--line);
+    padding:28px 20px 22px;
+    display:grid;
+    grid-template-columns: auto 1fr auto;
+    gap:28px;
+    align-items:end;
+  }
+  .hero .label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.08em;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  .mag-readout{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700;
+    font-size:clamp(64px, 12vw, 108px);
+    line-height:0.9;
+    color:var(--sig-high);
+    display:flex; align-items:flex-start; gap:6px;
+  }
+  .mag-readout .unit{ font-size:22px; margin-top:10px; color:var(--stone-dim); }
+  .hero-mid{ min-width:0; }
+  .hero-mid .wilayah{
+    font-size:clamp(18px,3vw,26px);
+    font-weight:600;
+    line-height:1.25;
+    margin:0 0 10px;
+    color:var(--stone);
+  }
+  .hero-meta{
+    display:flex; flex-wrap:wrap; gap:18px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--text-dim);
+  }
+  .hero-meta b{ color:var(--text); font-weight:600; }
+  .hero-flags{
+    display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+    font-family:'IBM Plex Mono', monospace; font-size:11px;
+    text-align:right;
+  }
+  .flag{
+    border:1px solid var(--line);
+    padding:6px 10px;
+    color:var(--sig-mid);
+    white-space:nowrap;
+  }
+  .flag.safe{ color:var(--sig-low); }
+
+  /* ---------- main grid ---------- */
+  .layout{
+    display:grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap:1px;
+    background:var(--line);
+  }
+  @media (max-width: 880px){
+    .layout{ grid-template-columns: 1fr; }
+    .hero{ grid-template-columns: 1fr; }
+    .hero-flags{ align-items:flex-start; text-align:left; flex-direction:row; flex-wrap:wrap; }
+  }
+
+  .panel{ background:var(--ink); }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px;
+    border-bottom:1px solid var(--line);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.06em; color:var(--text-dim);
+  }
+  #map{ height:520px; width:100%; filter: saturate(0.35) brightness(0.9); }
+
+  .legend{
+    display:flex; gap:14px; padding:10px 16px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim);
+  }
+  .legend i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+
+  /* ---------- ticker list ---------- */
+  .ticker{
+    max-height:520px;
+    overflow-y:auto;
+  }
+  .quake-row{
+    display:grid;
+    grid-template-columns: 52px 1fr auto;
+    gap:12px;
+    padding:12px 16px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    transition: background 0.15s ease;
+  }
+  .quake-row:hover{ background:var(--panel); }
+  .quake-mag{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:700; font-size:20px;
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line);
+    height:40px;
+  }
+  .quake-info .loc{ font-size:13.5px; font-weight:500; margin-bottom:3px; color:var(--stone); }
+  .quake-info .meta{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim); }
+  .quake-time{
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim);
+    text-align:right; white-space:nowrap;
+  }
+
+  /* ---------- felt section ---------- */
+  .felt{
+    grid-column: 1 / -1;
+    background:var(--ink);
+    border-top:1px solid var(--line);
+  }
+  .felt-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px,1fr));
+    gap:1px;
+    background:var(--line);
+  }
+  .felt-card{
+    background:var(--ink);
+    padding:14px 16px;
+  }
+  .felt-card .loc{ font-size:13px; font-weight:600; margin-bottom:6px; color:var(--stone); }
+  .felt-card .row{
+    display:flex; justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-dim);
+    margin-bottom:3px;
+  }
+  .felt-card .row b{ color:var(--sig-mid); }
+
+  footer{
+    padding:16px 20px 32px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--text-dim);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    border-top:1px solid var(--line);
+  }
+  footer a{ color:var(--text-dim); }
+
+  .empty-state{
+    padding:40px 16px; text-align:center;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-dim);
+  }
+  .refresh-btn{
+    background:none; border:1px solid var(--line); color:var(--text-dim);
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px;
+    padding:5px 10px; cursor:pointer;
+  }
+  .refresh-btn:hover{ color:var(--text); border-color:var(--stone-dim); }
+  .refresh-btn:focus-visible, a:focus-visible, .quake-row:focus-visible{
+    outline:2px solid var(--sig-mid); outline-offset:2px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .dot{ animation:none; }
+  }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-track{ background:var(--ink); }
+  ::-webkit-scrollbar-thumb{ background:var(--line); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <h1>PANTAU GEMPA</h1>
+    <span class="sub">MONITOR SEISMIK INDONESIA</span>
+  </div>
+  <div class="status">
+    <span class="dot"></span>
+    <span id="statusText">MENGHUBUNGKAN KE BMKG…</span>
+  </div>
+</div>
+
+<div class="hero" id="hero">
+  <div>
+    <div class="label">MAGNITUDO TERAKHIR</div>
+    <div class="mag-readout"><span id="heroMag">–.–</span><span class="unit">SR</span></div>
+  </div>
+  <div class="hero-mid">
+    <div class="label">LOKASI</div>
+    <p class="wilayah" id="heroWilayah">Memuat data gempabumi terkini…</p>
+    <div class="hero-meta">
+      <span>WAKTU LOKAL &nbsp;<b id="heroTime">–</b></span>
+      <span>KEDALAMAN &nbsp;<b id="heroDepth">–</b></span>
+      <span>KOORDINAT &nbsp;<b id="heroCoord">–</b></span>
+    </div>
+  </div>
+  <div class="hero-flags">
+    <div class="flag safe" id="heroPotensi">POTENSI: MEMUAT…</div>
+    <button class="refresh-btn" id="refreshBtn">↻ MUAT ULANG</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <div class="panel-head">
+      <span>PETA SEBARAN — 15 GEMPA TERKINI M5.0+</span>
+      <span id="mapCount">0 TITIK</span>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--sig-high)"></i>&lt; 50 KM</span>
+      <span><i style="background:var(--sig-mid)"></i>50–150 KM</span>
+      <span><i style="background:var(--sig-low)"></i>&gt; 150 KM</span>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span>LOG GEMPABUMI TERKINI</span>
+      <span id="listCount">—</span>
+    </div>
+    <div class="ticker" id="tickerList">
+      <div class="empty-state">Memuat data…</div>
+    </div>
+  </div>
+
+  <div class="felt">
+    <div class="panel-head">
+      <span>DIRASAKAN OLEH WARGA</span>
+      <span id="feltCount">—</span>
+    </div>
+    <div class="felt-grid" id="feltGrid">
+      <div class="empty-state">Memuat data…</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>Sumber data: <a href="https://data.bmkg.go.id/gempabumi/" target="_blank" rel="noopener">BMKG — Data Gempabumi Terbuka</a>. Diperbarui otomatis tiap 60 detik.</span>
+  <span id="lastUpdate">—</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const PROXIES = [
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+  (u) => u
+];
+const URLS = {
+  auto: 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json',
+  terkini: 'https://data.bmkg.go.id/DataMKG/TEWS/gempaterkini.json',
+  dirasakan: 'https://data.bmkg.go.id/DataMKG/TEWS/gempadirasakan.json'
+};
+
+async function fetchWithFallback(url){
+  let lastErr;
+  for(const wrap of PROXIES){
+    try{
+      const res = await fetch(wrap(url), { cache: 'no-store' });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr;
+}
+
+function depthColor(km){
+  if(km <= 50) return getComputedStyle(document.documentElement).getPropertyValue('--sig-high').trim();
+  if(km <= 150) return getComputedStyle(document.documentElement).getPropertyValue('--sig-mid').trim();
+  return getComputedStyle(document.documentElement).getPropertyValue('--sig-low').trim();
+}
+
+function parseCoord(coordStr){
+  const [lat, lon] = coordStr.split(',').map(s => parseFloat(s.trim()));
+  return { lat, lon };
+}
+
+function relativeTime(dateTimeStr){
+  // BMKG DateTime format: YYYY-MM-DDTHH:mm:ss+07:00
+  const then = new Date(dateTimeStr);
+  const diffMs = Date.now() - then.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if(mins < 1) return 'baru saja';
+  if(mins < 60) return mins + ' menit lalu';
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return hrs + ' jam lalu';
+  const days = Math.floor(hrs/24);
+  return days + ' hari lalu';
+}
+
+let map, markerLayer;
+function initMap(){
+  map = L.map('map', { zoomControl:true, attributionControl:false }).setView([-2.5, 118], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 12, minZoom: 3
+  }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+}
+
+function plotQuakes(list){
+  markerLayer.clearLayers();
+  list.forEach(q => {
+    const { lat, lon } = parseCoord(q.Coordinates);
+    const depth = parseFloat(q.Kedalaman);
+    const color = depthColor(depth);
+    const mag = parseFloat(q.Magnitude);
+    const marker = L.circleMarker([lat, lon], {
+      radius: Math.max(5, mag * 2.4),
+      color: color,
+      weight: 1.2,
+      fillColor: color,
+      fillOpacity: 0.35
+    }).bindPopup(
+      `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
+         <b>M${q.Magnitude}</b> — ${q.Wilayah}<br>
+         Kedalaman: ${q.Kedalaman}<br>
+         Waktu: ${q.Tanggal}, ${q.Jam}
+       </div>`
+    );
+    markerLayer.addLayer(marker);
+  });
+  document.getElementById('mapCount').textContent = list.length + ' TITIK';
+}
+
+function renderHero(g){
+  document.getElementById('heroMag').textContent = g.Magnitude;
+  document.getElementById('heroWilayah').textContent = g.Wilayah;
+  document.getElementById('heroTime').textContent = `${g.Tanggal}, ${g.Jam}`;
+  document.getElementById('heroDepth').textContent = g.Kedalaman;
+  document.getElementById('heroCoord').textContent = g.Coordinates;
+  const mag = parseFloat(g.Magnitude);
+  const readout = document.getElementById('heroMag');
+  readout.style.color = mag >= 5 ? 'var(--sig-high)' : (mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
+  const potensi = document.getElementById('heroPotensi');
+  const teksPotensi = g.Potensi || 'Tidak berpotensi tsunami';
+  potensi.textContent = 'POTENSI: ' + teksPotensi.toUpperCase();
+  potensi.classList.toggle('safe', /tidak/i.test(teksPotensi));
+}
+
+function renderTicker(list){
+  const el = document.getElementById('tickerList');
+  if(!list.length){
+    el.innerHTML = '<div class="empty-state">Belum ada data. Coba muat ulang.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  list.forEach(q => {
+    const mag = parseFloat(q.Magnitude);
+    const color = mag >= 5 ? 'var(--sig-high)' : (mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
+    const row = document.createElement('div');
+    row.className = 'quake-row';
+    row.tabIndex = 0;
+    row.innerHTML = `
+      <div class="quake-mag" style="color:${color};border-color:${color}">${q.Magnitude}</div>
+      <div class="quake-info">
+        <div class="loc">${q.Wilayah}</div>
+        <div class="meta">KEDALAMAN ${q.Kedalaman} · ${q.Coordinates}</div>
+      </div>
+      <div class="quake-time">${relativeTime(q.DateTime)}<br>${q.Jam}</div>
+    `;
+    const { lat, lon } = parseCoord(q.Coordinates);
+    row.addEventListener('click', () => { map.flyTo([lat, lon], 7); });
+    el.appendChild(row);
+  });
+  document.getElementById('listCount').textContent = list.length + ' EVENT';
+}
+
+function renderFelt(list){
+  const el = document.getElementById('feltGrid');
+  if(!list.length){
+    el.innerHTML = '<div class="empty-state">Belum ada data dirasakan.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  list.slice(0,9).forEach(q => {
+    const card = document.createElement('div');
+    card.className = 'felt-card';
+    card.innerHTML = `
+      <div class="loc">${q.Wilayah}</div>
+      <div class="row"><span>Magnitudo</span><b>${q.Magnitude}</b></div>
+      <div class="row"><span>Kedalaman</span><span>${q.Kedalaman}</span></div>
+      <div class="row"><span>Dirasakan</span><span>${q.Dirasakan || '–'}</span></div>
+      <div class="row"><span>Waktu</span><span>${q.Jam}</span></div>
+    `;
+    el.appendChild(card);
+  });
+  document.getElementById('feltCount').textContent = Math.min(list.length,9) + ' LAPORAN';
+}
+
+async function loadAll(){
+  const statusText = document.getElementById('statusText');
+  statusText.textContent = 'MEMPERBARUI DATA…';
+  try{
+    const [autoData, terkiniData, dirasakanData] = await Promise.all([
+      fetchWithFallback(URLS.auto),
+      fetchWithFallback(URLS.terkini),
+      fetchWithFallback(URLS.dirasakan)
+    ]);
+
+    const gEvent = autoData.Infogempa.gempa;
+    renderHero(gEvent);
+
+    const terkiniList = terkiniData.Infogempa.gempa;
+    plotQuakes(terkiniList);
+    renderTicker(terkiniList);
+
+    const dirasakanList = dirasakanData.Infogempa.gempa;
+    renderFelt(dirasakanList);
+
+    statusText.textContent = 'TERHUBUNG — DATA BMKG LIVE';
+    document.getElementById('lastUpdate').textContent =
+      'Terakhir diperbarui: ' + new Date().toLocaleTimeString('id-ID') + ' WIB';
+  }catch(e){
+    statusText.textContent = 'GAGAL MEMUAT DATA — PERIKSA KONEKSI';
+    console.error(e);
+  }
+}
+
+initMap();
+loadAll();
+setInterval(loadAll, 60000);
+document.getElementById('refreshBtn').addEventListener('click', loadAll);
+</script>
+</body>
+</html>
