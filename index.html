@@ -395,6 +395,35 @@ function fmtTimeWIB(ms){
   });
 }
 
+// Terjemahan arah mata angin ke Bahasa Indonesia, tanpa singkatan, diawali kata "arah".
+const COMPASS_ID = {
+  N:'Utara', NNE:'Utara Timur Laut', NE:'Timur Laut', ENE:'Timur Timur Laut',
+  E:'Timur', ESE:'Timur Tenggara', SE:'Tenggara', SSE:'Selatan Tenggara',
+  S:'Selatan', SSW:'Selatan Barat Daya', SW:'Barat Daya', WSW:'Barat Barat Daya',
+  W:'Barat', WNW:'Barat Barat Laut', NW:'Barat Laut', NNW:'Utara Barat Laut'
+};
+const COMPASS_WORDS_ID = ['Utara','Selatan','Timur','Barat','Laut','Daya','Tenggara'];
+
+function terjemahArahMataAngin(text){
+  if(!text) return text;
+  // Format USGS, contoh: "18 km SE of Bengkulu, Indonesia"
+  const usgsMatch = text.match(/^(\d+\s*km)\s+([NSEW]{1,3})\s+of\s+(.+)$/i);
+  if(usgsMatch){
+    const [, dist, dirAbbr, place] = usgsMatch;
+    const dirID = COMPASS_ID[dirAbbr.toUpperCase()];
+    if(dirID) return `${dist} arah ${dirID} dari ${place}`;
+  }
+  // Format BMKG, contoh: "24 km BaratDaya MENTAWAI-SUMBAR"
+  const bmkgMatch = text.match(/^(\d+\s*km)\s+([A-Za-z]+)\s+(.+)$/);
+  if(bmkgMatch){
+    const [, dist, dirWord, place] = bmkgMatch;
+    const spaced = dirWord.replace(/([a-z])([A-Z])/g, '$1 $2');
+    const isDirection = spaced.split(' ').every(w => COMPASS_WORDS_ID.includes(w));
+    if(isDirection) return `${dist} arah ${spaced} ${place}`;
+  }
+  return text;
+}
+
 function depthColor(km){
   if(km <= 50) return getComputedStyle(document.documentElement).getPropertyValue('--sig-high').trim();
   if(km <= 150) return getComputedStyle(document.documentElement).getPropertyValue('--sig-mid').trim();
@@ -442,7 +471,7 @@ function plotQuakes(list){
       fillOpacity: 0.35
     }).bindPopup(
       `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
-         <b>M${q.mag.toFixed(1)}</b> — ${q.place}<br>
+         <b>M${q.mag.toFixed(1)}</b> — ${terjemahArahMataAngin(q.place)}<br>
          Kedalaman: ${Math.round(q.depthKm)} km<br>
          Waktu: ${fmtTimeWIB(q.timeMs)} WIB
        </div>`
@@ -454,7 +483,7 @@ function plotQuakes(list){
 
 function renderHero(g){
   document.getElementById('heroMag').textContent = g.Magnitude;
-  document.getElementById('heroWilayah').textContent = g.Wilayah;
+  document.getElementById('heroWilayah').textContent = terjemahArahMataAngin(g.Wilayah);
   document.getElementById('heroTime').textContent = `${g.Tanggal}, ${g.Jam}`;
   document.getElementById('heroDepth').textContent = g.Kedalaman;
   document.getElementById('heroCoord').textContent = g.Coordinates;
@@ -482,7 +511,7 @@ function renderTicker(list){
     row.innerHTML = `
       <div class="quake-mag" style="color:${color};border-color:${color}">${q.mag.toFixed(1)}</div>
       <div class="quake-info">
-        <div class="loc">${q.place}</div>
+        <div class="loc">${terjemahArahMataAngin(q.place)}</div>
         <div class="meta">KEDALAMAN ${Math.round(q.depthKm)} KM · ${q.lat.toFixed(2)}, ${q.lon.toFixed(2)}</div>
       </div>
       <div class="quake-time">${relativeTimeMs(q.timeMs)}<br>${fmtTimeWIB(q.timeMs)}</div>
@@ -504,7 +533,7 @@ function renderFelt(list){
     const card = document.createElement('div');
     card.className = 'felt-card';
     card.innerHTML = `
-      <div class="loc">${q.Wilayah}</div>
+      <div class="loc">${terjemahArahMataAngin(q.Wilayah)}</div>
       <div class="row"><span>Magnitudo</span><b>${q.Magnitude}</b></div>
       <div class="row"><span>Kedalaman</span><span>${q.Kedalaman}</span></div>
       <div class="row"><span>Dirasakan</span><span>${q.Dirasakan || '–'}</span></div>
