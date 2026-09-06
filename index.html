@@ -37,6 +37,7 @@
   .mini-time{ font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--text-dim); margin-top:2px; }
   .sidebar-toggle{ display:none; }
   .bottom-wrap{ margin-top:auto; z-index:20; display:flex; flex-direction:column; max-width:1180px; width:100%; margin-left:auto; margin-right:auto; padding:0 14px 14px; }
+  .bottom-wrap.hidden { display:none; }
   .charts-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-bottom:none; }
   .chart-card{ background:var(--panel-2); backdrop-filter:blur(6px); }
   .chart-card .chart-title{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim); padding:8px 10px 0; }
@@ -143,6 +144,7 @@
   </div>
 
   <div class="toolbar">
+    <button class="tool-btn" id="btnToggleBottom">📊 INFO GEMPA</button>
     <button class="tool-btn" id="btnList">☰ DAFTAR REALTIME</button>
     <button class="tool-btn" id="btnStat">▤ STATISTIK</button>
     <button class="tool-btn" id="btnVolcano">🌋 GUNUNG API <span id="volcanoBadge" class="badge mono" style="display:none"></span></button>
@@ -169,10 +171,10 @@
     <div class="leg-item"><span class="dot-leg" style="background:var(--sig-low)"></span> Gempa Dalam (&gt;150km)</div>
     <div class="leg-item"><span class="tri-leg"></span> Gunung Api Aktif</div>
     <div class="leg-item"><span class="dot-leg" style="background:var(--ground)"></span> Tanah Bergeser</div>
-    <div class="leg-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--stone-dim);display:inline-block;text-align:center;font-size:8px;flex-shrink:0;">⚠</span> Bencana Lain (Banjir, Longsor, Kebakaran)</div>
+    <div class="leg-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--stone-dim);display:inline-block;text-align:center;font-size:8px;flex-shrink:0;">⚠</span> Bencana Lain (Banjir, Longsor, Kebakaran, Badai)</div>
   </div>
 
-  <div class="bottom-wrap">
+  <div class="bottom-wrap hidden">
     <div class="charts-row">
       <div class="chart-card">
         <div class="chart-title">SEBARAN MAGNITUDO</div>
@@ -316,6 +318,7 @@
       <p style="font-size:12px;line-height:1.6;color:var(--text-dim);margin-top:0;">
         Data <b>gerakan tanah (tanah bergeser, longsor, subsiden)</b> berasal dari deteksi satelit <b>NASA EONET</b> dan <b>USGS Landslide Hazards</b>.
         Data banjir, erupsi, kebakaran dari <b>PetaBencana.id</b> (laporan warga) dan <b>NASA EONET</b> (satelit).
+        Data badai/siklon dari <b>NASA EONET</b> (kategori severeStorms) dan <b>JTWC</b> (melalui sumber terbuka).
       </p>
       <div class="hazard-filters" id="hazardFilters">
         <label class="hazard-chip active" data-type="flood"><input type="checkbox" checked><span class="hazard-icon" style="background:#3B82C4">🌊</span>Banjir</label>
@@ -366,9 +369,10 @@
 
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Gerakan Tanah, Longsor, Bencana Lain</b></p>
       <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
-        <li><b style="color:var(--stone)">NASA EONET v3</b>: deteksi satelit tanah longsor, gerakan tanah, kebakaran hutan, badai, kekeringan</li>
+        <li><b style="color:var(--stone)">NASA EONET v3</b>: deteksi satelit tanah longsor, gerakan tanah, kebakaran hutan, badai/siklon, kekeringan</li>
         <li><b style="color:var(--stone)"><a href="https://petabencana.id/" target="_blank" rel="noopener" style="color:var(--sig-mid)">PetaBencana.id</a></b>: laporan warga terverifikasi untuk banjir, kebakaran, kabut asap, angin kencang</li>
         <li><b style="color:var(--stone)">USGS Landslide Hazards</b>: data referensi longsor global (pelengkap)</li>
+        <li><b style="color:var(--stone)"><a href="https://www.metoc.navy.mil/jtwc/jtwc.html" target="_blank" rel="noopener" style="color:var(--sig-mid)">JTWC</a></b> – peringatan siklon tropis (referensi)</li>
       </ul>
 
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Portal Pemantauan Bencana Resmi Lainnya</b></p>
@@ -383,6 +387,7 @@
       <p style="font-size:12px;line-height:1.7;color:var(--text-dim);margin-top:12px;">
         Sesuai ketentuan penggunaan data terbuka BMKG, BMKG dicantumkan sebagai sumber data resmi.
         Data gunung api bersifat referensi dari GVP; status Level I–IV harus diverifikasi langsung ke MAGMA Indonesia.
+        Data badai/siklon menggunakan NASA EONET dan referensi JTWC.
       </p>
     </div>
   </div>
@@ -863,6 +868,15 @@ function renderHazardModal(){
   });
 }
 
+// SAMPLE DATA jika fetch gagal
+const SAMPLE_HAZARDS = [
+  { id: 'sample-flood', type: 'flood', title: 'Banjir di Jakarta (contoh)', lat: -6.2, lon: 106.8, timeMs: Date.now(), source: 'Sampel', link: '#' },
+  { id: 'sample-landslide', type: 'landslide', title: 'Longsor di Sukabumi (contoh)', lat: -6.9, lon: 106.9, timeMs: Date.now(), source: 'Sampel', link: '#' },
+  { id: 'sample-wildfire', type: 'wildfire', title: 'Kebakaran Hutan Kalimantan (contoh)', lat: -2.5, lon: 114.0, timeMs: Date.now(), source: 'Sampel', link: '#' },
+  { id: 'sample-storm', type: 'storm', title: 'Siklon Tropis di Samudra Hindia (contoh)', lat: -8.0, lon: 105.0, timeMs: Date.now(), source: 'Sampel', link: '#' },
+  { id: 'sample-ground', type: 'ground_movement', title: 'Tanah Bergeser di Sulawesi (contoh)', lat: -2.0, lon: 120.0, timeMs: Date.now(), source: 'Sampel', link: '#' }
+];
+
 async function loadHazards(){
   const results = await Promise.allSettled([
     fetchPetaBencana('flood', 'flood'),
@@ -876,7 +890,15 @@ async function loadHazards(){
     fetchEONET('severeStorms', 14),
     fetchEONET('dustHaze', 30)
   ]);
-  hazardData = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  let combined = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  
+  // Jika tidak ada data sama sekali, gunakan sampel
+  if(combined.length === 0) {
+    console.warn('Tidak ada data hazard dari API, menggunakan data sampel.');
+    combined = SAMPLE_HAZARDS;
+  }
+  
+  hazardData = combined;
 
   erupsiVolcanoIds.clear();
   hazardData.filter(h => h.type === 'volcano').forEach(h => {
@@ -1065,7 +1087,8 @@ const GLOSARIUM = [
   ['Stratovolcano','Gunung api kerucut yang tersusun dari lapisan lava dan material vulkanik, umumnya memiliki letusan eksplosif.'],
   ['Caldera','Kawah besar yang terbentuk akibat runtuhnya kamar magma setelah letusan gunung api yang sangat besar.'],
   ['Level Aktivitas Gunung Api','Status I (Normal), II (Waspada), III (Siaga), IV (Awas) berdasarkan pengamatan visual dan instrumental PVMBG.'],
-  ['Tanah Bergeser (Ground Movement)','Pergerakan massa tanah yang terdeteksi melalui satelit InSAR atau lapangan, mencakup subsiden, uplift, dan longsor perlahan.']
+  ['Tanah Bergeser (Ground Movement)','Pergerakan massa tanah yang terdeteksi melalui satelit InSAR atau lapangan, mencakup subsiden, uplift, dan longsor perlahan.'],
+  ['Siklon Tropis','Sistem tekanan rendah yang sangat kuat dengan angin berkecepatan tinggi, terbentuk di lautan tropis dan dapat menyebabkan bencana besar.'],
 ];
 function renderGlosarium(){
   document.getElementById('glosBody').innerHTML = GLOSARIUM
@@ -1093,6 +1116,11 @@ function ensureMiniMap(){
 }
 
 /* ================= EVENT LISTENERS ================= */
+// Toggle bottom-wrap
+document.getElementById('btnToggleBottom').addEventListener('click', function() {
+  document.querySelector('.bottom-wrap').classList.toggle('hidden');
+});
+
 document.getElementById('btnList').addEventListener('click', () => { openModal('modalList'); ensureMiniMap(); setTimeout(()=>miniMap.invalidateSize(),50); });
 document.getElementById('linkList').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('btnList').click(); });
 document.getElementById('btnStat').addEventListener('click', () => openModal('modalStat'));
