@@ -340,30 +340,45 @@
 <div class="modal-bg" id="modalAbout">
   <div class="modal-box">
     <div class="modal-head">
-      <h3>Sumber Data</h3>
+      <h3>Sumber Data & Portal Pemantauan Resmi</h3>
       <button class="modal-close" data-close>✕</button>
     </div>
     <div class="modal-body">
       <p style="font-size:13px;line-height:1.7;color:var(--stone-dim);">
         Situs ini menampilkan data kebencanaan secara langsung dari sumber-sumber publik berikut, tanpa modifikasi nilai ilmiah:
       </p>
+
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Gempabumi &amp; Tsunami</b></p>
       <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
         <li><b style="color:var(--stone)">BMKG</b>: autogempa.json, gempaterkini.json, gempadirasakan.json</li>
         <li><b style="color:var(--stone)">USGS Earthquake API</b>: pelengkap M2.0+ dengan CORS langsung</li>
+        <li><b style="color:var(--stone)"><a href="https://inatews.bmkg.go.id/" target="_blank" rel="noopener" style="color:var(--sig-mid)">InaTEWS BMKG</a></b> – data gempabumi dan peringatan dini tsunami</li>
+        <li><b style="color:var(--stone)"><a href="https://gis.bmkg.go.id/portal/webgis" target="_blank" rel="noopener" style="color:var(--sig-mid)">WebGIS BMKG</a></b> – peta tematik cuaca dan iklim</li>
       </ul>
+
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Gunung Api</b></p>
       <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
         <li><b style="color:var(--stone)">Smithsonian GVP</b>: database publik referensi global (nama, koordinat, klasifikasi)</li>
         <li><b style="color:var(--stone)">NASA EONET v3</b>: deteksi erupsi gunung berapi via satelit</li>
-        <li><b style="color:var(--stone)">MAGMA Indonesia (PVMBG/ESDM)</b>: status resmi Level I–IV — ditautkan langsung</li>
+        <li><b style="color:var(--stone)"><a href="https://magma.esdm.go.id/v1/gunung-api/tingkat-aktivitas" target="_blank" rel="noopener" style="color:var(--sig-mid)">MAGMA Indonesia (PVMBG/ESDM)</a></b> – status resmi Level I–IV seluruh gunung api</li>
       </ul>
+
       <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Gerakan Tanah, Longsor, Bencana Lain</b></p>
       <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
         <li><b style="color:var(--stone)">NASA EONET v3</b>: deteksi satelit tanah longsor, gerakan tanah, kebakaran hutan, badai, kekeringan</li>
-        <li><b style="color:var(--stone)">PetaBencana.id</b>: laporan warga terverifikasi untuk banjir, kebakaran, kabut asap, angin kencang</li>
+        <li><b style="color:var(--stone)"><a href="https://petabencana.id/" target="_blank" rel="noopener" style="color:var(--sig-mid)">PetaBencana.id</a></b>: laporan warga terverifikasi untuk banjir, kebakaran, kabut asap, angin kencang</li>
         <li><b style="color:var(--stone)">USGS Landslide Hazards</b>: data referensi longsor global (pelengkap)</li>
       </ul>
+
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Portal Pemantauan Bencana Resmi Lainnya</b></p>
+      <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
+        <li><b style="color:var(--stone)"><a href="https://gis.bnpb.go.id/" target="_blank" rel="noopener" style="color:var(--sig-mid)">GIS BNPB</a></b> – peta kebencanaan nasional terpadu</li>
+        <li><b style="color:var(--stone)"><a href="https://inaware.bnpb.go.id/inaware/" target="_blank" rel="noopener" style="color:var(--sig-mid)">InAWARE</a></b> – sistem peringatan dini dan informasi bencana BNPB</li>
+        <li><b style="color:var(--stone)"><a href="https://inarisk.bnpb.go.id/" target="_blank" rel="noopener" style="color:var(--sig-mid)">InaRISK</a></b> – peta risiko dan indeks kerentanan bencana</li>
+        <li><b style="color:var(--stone)"><a href="https://pantaubanjir.jakarta.go.id/peta-informasi-banjir" target="_blank" rel="noopener" style="color:var(--sig-mid)">Pantau Banjir Jakarta</a></b> – pemantauan banjir dan pos air DKI</li>
+        <li><b style="color:var(--stone)"><a href="https://sitaba.pu.go.id/bencana-terkini?type=statistik" target="_blank" rel="noopener" style="color:var(--sig-mid)">Sitaba PUPR</a></b> – statistik dan informasi bencana infrastruktur</li>
+      </ul>
+
       <p style="font-size:12px;line-height:1.7;color:var(--text-dim);margin-top:12px;">
         Sesuai ketentuan penggunaan data terbuka BMKG, BMKG dicantumkan sebagai sumber data resmi.
         Data gunung api bersifat referensi dari GVP; status Level I–IV harus diverifikasi langsung ke MAGMA Indonesia.
@@ -375,7 +390,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 
 <script>
-/* ================= SUMBER DATA ================= */
+/* ================= SOURCES ================= */
 const URLS = {
   auto: 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json',
   terkini: 'https://data.bmkg.go.id/DataMKG/TEWS/gempaterkini.json',
@@ -397,7 +412,7 @@ async function fetchJSON(url){
   return await res.json();
 }
 
-/* ================= DATABASE GUNUNG API INDONESIA (Smithsonian GVP) ================= */
+/* ================= VOLCANO DB (Smithsonian GVP) ================= */
 const VOLCANO_DB = [
   { nama:"Merapi", lat:-7.5407, lon:110.4467, elev:2968, tipe:"Stratovolcano", lokasi:"Jawa Tengah / Yogyakarta", status:"II", statusDate:"2024-06", gvpId:"263250" },
   { nama:"Semeru", lat:-8.1078, lon:112.9220, elev:3676, tipe:"Stratovolcano", lokasi:"Jawa Timur", status:"II", statusDate:"2024-06", gvpId:"263300" },
@@ -582,7 +597,7 @@ function formatLokasiGempa(text, lat, lon){
   return gantiIndonesiaDenganProvinsi(terjemahArahMataAngin(text), lat, lon);
 }
 
-/* ================= HELPER TAMPILAN ================= */
+/* ================= HELPER ================= */
 function depthColor(km){
   if(km <= 50) return getComputedStyle(document.documentElement).getPropertyValue('--sig-high').trim();
   if(km <= 150) return getComputedStyle(document.documentElement).getPropertyValue('--sig-mid').trim();
@@ -685,7 +700,7 @@ function plotVolcanoes(){
       iconSize:[size,size], iconAnchor:[size/2,size]
     });
     const marker = L.marker([v.lat, v.lon], { icon }).bindPopup(volcanoPopup(v, status));
-    marker.on('click', () => map.flyTo([v.lat, v.lon], 10, { duration:1.1 }));
+    marker.on('click', () => map.flyTo([v.lat, v.lon], 13, { duration:1.1 }));
     volcanoLayer.addLayer(marker);
   });
   const badge = document.getElementById('volcanoBadge');
@@ -716,12 +731,12 @@ function renderVolcanoModal(filterStatus){
       const lat = parseFloat(row.dataset.lat);
       const lon = parseFloat(row.dataset.lon);
       closeModal('modalVolcano');
-      map.flyTo([lat, lon], 10, { duration:1.1 });
+      map.flyTo([lat, lon], 13, { duration:1.1 });
     });
   });
 }
 
-/* ================= HAZARD META ================= */
+/* ================= HAZARD ================= */
 const HAZARD_META = {
   flood:     { label:'Banjir',              icon:'🌊', color:'#3B82C4' },
   volcano:   { label:'Erupsi Vulkanik',     icon:'🌋', color:'#E0663D' },
@@ -741,7 +756,6 @@ function dalamIndonesia(lat, lon){
     lat >= INDO_BBOX.latMin && lat <= INDO_BBOX.latMax && lon >= INDO_BBOX.lonMin && lon <= INDO_BBOX.lonMax;
 }
 
-/* ================= FETCH BENCANA ================= */
 async function fetchPetaBencana(disasterKey, hazardType){
   try{
     const url = `https://data.petabencana.id/reports?disaster=${disasterKey}&format=json`;
@@ -843,7 +857,7 @@ function renderHazardModal(){
     row.addEventListener('click', (e) => {
       if(e.target.tagName === 'A') return;
       const h = hazardData.find(x => x.id === row.dataset.id);
-      if(h){ closeModal('modalHazards'); map.flyTo([h.lat, h.lon], 10, { duration:1.1 }); }
+      if(h){ closeModal('modalHazards'); map.flyTo([h.lat, h.lon], 13, { duration:1.1 }); }
     });
   });
 }
@@ -863,7 +877,6 @@ async function loadHazards(){
   ]);
   hazardData = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 
-  // Mark volcano IDs that are erupting from EONET
   erupsiVolcanoIds.clear();
   hazardData.filter(h => h.type === 'volcano').forEach(h => {
     const near = VOLCANO_DB.find(v => Math.abs(v.lat - h.lat) < 0.5 && Math.abs(v.lon - h.lon) < 0.5);
@@ -926,7 +939,7 @@ function renderListModal(list){
       <td>${Math.round(q.depthKm)} km</td>
       <td><span class="src-tag">${q.source}</span></td>`;
     tr.addEventListener('click', () => {
-      miniMap.flyTo([q.lat, q.lon], 9);
+      miniMap.flyTo([q.lat, q.lon], 13);
       const mk = L.circleMarker([q.lat, q.lon], { radius:8, color:magColor(q.mag), fillColor:magColor(q.mag), fillOpacity:0.6 });
       miniMarkerLayer.clearLayers();
       mk.addTo(miniMarkerLayer).bindPopup(popupHtml(q)).openPopup();
@@ -1058,7 +1071,7 @@ function renderGlosarium(){
     .map(([term,def]) => `<div class="glos-term">${term}</div><div class="glos-def">${def}</div>`).join('');
 }
 
-/* ================= MODAL CONTROL ================= */
+/* ================= MODAL ================= */
 function openModal(id){ document.getElementById(id).classList.add('show'); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('[data-close]').forEach(btn => {
@@ -1115,7 +1128,7 @@ document.querySelectorAll('.hazard-chip').forEach(chip => {
 
 document.getElementById('btnHazards').addEventListener('click', () => { openModal('modalHazards'); renderHazardModal(); });
 
-/* ================= LOAD & REFRESH ================= */
+/* ================= LOAD ================= */
 async function loadAll(){
   const statusText = document.getElementById('statusText');
   statusText.textContent = 'MEMPERBARUI DATA…';
