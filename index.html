@@ -2,17 +2,19 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>PANTAU GEMPA — Monitor Seismik Indonesia</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/highcharts-more.js"></script>
 <style>
   :root{
     --ink:#0F1416;
     --panel:#161E21;
-    --panel-2:#1C262A;
-    --line: #2C3A3E;
+    --panel-2:rgba(22,30,33,0.92);
+    --line:#2C3A3E;
     --stone:#E7E1D3;
     --stone-dim:#B9B2A0;
     --text:#EDE8DC;
@@ -20,10 +22,9 @@
     --sig-high:#C1440E;
     --sig-mid:#D9A441;
     --sig-low:#4A8B7C;
-    --sig-high-glow: rgba(193,68,14,0.35);
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;}
   body{
     background:var(--ink);
     color:var(--text);
@@ -32,285 +33,405 @@
   }
   .mono{ font-family:'IBM Plex Mono', monospace; }
 
-  /* ---------- topbar ---------- */
-  .topbar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:14px 20px;
-    border-bottom:1px solid var(--line);
-    position:sticky; top:0; z-index:50;
-    background:rgba(15,20,22,0.92);
-    backdrop-filter: blur(6px);
-  }
-  .brand{ display:flex; align-items:baseline; gap:10px; }
-  .brand h1{
-    font-size:18px; letter-spacing:0.02em; margin:0; font-weight:700;
-  }
-  .brand span.sub{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; color:var(--text-dim);
-  }
-  .status{
-    display:flex; align-items:center; gap:8px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; color:var(--sig-low);
-  }
-  .dot{
-    width:7px; height:7px; border-radius:50%;
-    background:var(--sig-low);
-    box-shadow:0 0 0 0 rgba(74,139,124,0.6);
-    animation:pulse-dot 2s infinite;
-  }
-  @keyframes pulse-dot{
-    0%{box-shadow:0 0 0 0 rgba(74,139,124,0.5);}
-    70%{box-shadow:0 0 0 6px rgba(74,139,124,0);}
-    100%{box-shadow:0 0 0 0 rgba(74,139,124,0);}
-  }
+  /* ---------- peta layar penuh ---------- */
+  #map{ position:fixed; inset:0; z-index:0; filter:brightness(0.9) contrast(1.05); }
 
-  /* ---------- hero ---------- */
-  .hero{
-    border-bottom:1px solid var(--line);
-    padding:28px 20px 22px;
-    display:grid;
-    grid-template-columns: auto 1fr auto;
-    gap:28px;
-    align-items:end;
+  .overlay{ position:fixed; inset:0; z-index:10; pointer-events:none; display:flex; flex-direction:column; }
+  .overlay > *{ pointer-events:auto; }
+
+  /* ---------- brand & status (kiri atas) ---------- */
+  .brandbar{
+    position:absolute; top:14px; left:14px; z-index:20;
+    display:flex; align-items:center; gap:10px;
+    background:var(--panel-2); border:1px solid var(--line);
+    padding:8px 12px; backdrop-filter:blur(6px);
   }
-  .hero .label{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; letter-spacing:0.08em;
-    color:var(--text-dim);
-    margin-bottom:6px;
+  .brandbar h1{ font-size:14px; margin:0; font-weight:700; letter-spacing:0.02em; }
+  .brandbar .sub{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim); }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--sig-low); flex-shrink:0;
+    box-shadow:0 0 0 0 rgba(74,139,124,0.6); animation:pulse-dot 2s infinite; }
+  @keyframes pulse-dot{ 0%{box-shadow:0 0 0 0 rgba(74,139,124,0.5);} 70%{box-shadow:0 0 0 6px rgba(74,139,124,0);} 100%{box-shadow:0 0 0 0 rgba(74,139,124,0);} }
+  #statusText{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim); }
+
+  /* ---------- toolbar kanan atas ---------- */
+  .toolbar{
+    position:absolute; top:14px; right:14px; z-index:20;
+    display:flex; flex-direction:column; gap:6px;
   }
-  .mag-readout{
-    font-family:'IBM Plex Mono', monospace;
-    font-weight:700;
-    font-size:clamp(64px, 12vw, 108px);
-    line-height:0.9;
-    color:var(--sig-high);
-    display:flex; align-items:flex-start; gap:6px;
-  }
-  .mag-readout .unit{ font-size:22px; margin-top:10px; color:var(--stone-dim); }
-  .hero-mid{ min-width:0; }
-  .hero-mid .wilayah{
-    font-size:clamp(18px,3vw,26px);
-    font-weight:600;
-    line-height:1.25;
-    margin:0 0 10px;
-    color:var(--stone);
-  }
-  .hero-meta{
-    display:flex; flex-wrap:wrap; gap:18px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:12.5px;
-    color:var(--text-dim);
-  }
-  .hero-meta b{ color:var(--text); font-weight:600; }
-  .hero-flags{
-    display:flex; flex-direction:column; gap:8px; align-items:flex-end;
-    font-family:'IBM Plex Mono', monospace; font-size:11px;
-    text-align:right;
-  }
-  .flag{
-    border:1px solid var(--line);
-    padding:6px 10px;
-    color:var(--sig-mid);
+  .tool-btn{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.03em;
+    padding:9px 12px; text-align:left; cursor:pointer; backdrop-filter:blur(6px);
     white-space:nowrap;
   }
-  .flag.safe{ color:var(--sig-low); }
+  .tool-btn:hover{ border-color:var(--stone-dim); }
 
-  /* ---------- main grid ---------- */
-  .layout{
-    display:grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap:1px;
-    background:var(--line);
+  /* ---------- sidebar kiri: log ringkas ---------- */
+  .sidebar{
+    position:absolute; top:64px; left:14px; bottom:auto; z-index:15;
+    width:270px; max-height:calc(100vh - 320px);
+    background:var(--panel-2); border:1px solid var(--line);
+    backdrop-filter:blur(6px); display:flex; flex-direction:column;
   }
-  @media (max-width: 880px){
-    .layout{ grid-template-columns: 1fr; }
-    .hero{ grid-template-columns: 1fr; }
-    .hero-flags{ align-items:flex-start; text-align:left; flex-direction:row; flex-wrap:wrap; }
+  .sidebar-head{
+    padding:9px 12px; border-bottom:1px solid var(--line);
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--text-dim);
+    display:flex; justify-content:space-between; align-items:center;
   }
+  .sidebar-list{ overflow-y:auto; }
+  .mini-row{
+    padding:9px 12px; border-bottom:1px solid var(--line); cursor:pointer;
+    display:flex; gap:9px; align-items:center;
+  }
+  .mini-row:hover{ background:rgba(255,255,255,0.04); }
+  .mini-mag{
+    font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:13px;
+    width:34px; height:26px; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line); flex-shrink:0;
+  }
+  .mini-loc{ font-size:11px; line-height:1.3; color:var(--stone); }
+  .mini-time{ font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--text-dim); margin-top:2px; }
+  .sidebar-toggle{ display:none; }
 
-  .panel{ background:var(--ink); }
-  .panel-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:12px 16px;
-    border-bottom:1px solid var(--line);
-    font-family:'IBM Plex Mono', monospace;
-    font-size:11px; letter-spacing:0.06em; color:var(--text-dim);
-  }
-  #map{ height:520px; width:100%; filter: brightness(0.92) contrast(1.05); }
-
-  .legend{
-    display:flex; gap:14px; padding:10px 16px; flex-wrap:wrap;
-    border-bottom:1px solid var(--line);
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim);
-  }
-  .legend i{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
-
-  /* ---------- ticker list ---------- */
-  .ticker{
-    max-height:520px;
-    overflow-y:auto;
-  }
-  .quake-row{
-    display:grid;
-    grid-template-columns: 52px 1fr auto;
-    gap:12px;
-    padding:12px 16px;
-    border-bottom:1px solid var(--line);
-    cursor:pointer;
-    transition: background 0.15s ease;
-  }
-  .quake-row:hover{ background:var(--panel); }
-  .quake-mag{
-    font-family:'IBM Plex Mono', monospace;
-    font-weight:700; font-size:20px;
-    display:flex; align-items:center; justify-content:center;
-    border:1px solid var(--line);
-    height:40px;
-  }
-  .quake-info .loc{ font-size:13.5px; font-weight:500; margin-bottom:3px; color:var(--stone); }
-  .quake-info .meta{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim); }
-  .quake-time{
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim);
-    text-align:right; white-space:nowrap;
+  /* ---------- panel bawah ---------- */
+  .bottom-wrap{
+    margin-top:auto; z-index:20;
+    display:flex; flex-direction:column;
+    max-width:1180px; width:100%; margin-left:auto; margin-right:auto;
+    padding:0 14px 14px;
   }
 
-  /* ---------- felt section ---------- */
-  .felt{
-    grid-column: 1 / -1;
-    background:var(--ink);
-    border-top:1px solid var(--line);
+  .charts-row{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-bottom:none;
   }
-  .felt-grid{
-    display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px,1fr));
-    gap:1px;
-    background:var(--line);
+  .chart-card{ background:var(--panel-2); backdrop-filter:blur(6px); }
+  .chart-card .chart-title{
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim);
+    padding:8px 10px 0;
   }
-  .felt-card{
-    background:var(--ink);
-    padding:14px 16px;
-  }
-  .felt-card .loc{ font-size:13px; font-weight:600; margin-bottom:6px; color:var(--stone); }
-  .felt-card .row{
-    display:flex; justify-content:space-between;
-    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-dim);
-    margin-bottom:3px;
-  }
-  .felt-card .row b{ color:var(--sig-mid); }
+  .chart-box{ height:110px; }
+  .charts-toggle{ display:none; }
 
-  footer{
-    padding:16px 20px 32px;
-    font-family:'IBM Plex Mono', monospace;
-    font-size:10.5px;
-    color:var(--text-dim);
-    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
-    border-top:1px solid var(--line);
+  .info-card{
+    background:var(--panel-2); border:1px solid var(--line);
+    backdrop-filter:blur(6px);
+    display:grid; grid-template-columns:auto 1fr auto; gap:16px;
+    padding:16px 18px; align-items:start; cursor:pointer;
   }
-  footer a{ color:var(--text-dim); }
+  .mag-block{
+    background:var(--sig-high); color:#0F1416; font-family:'IBM Plex Mono',monospace;
+    font-weight:700; font-size:34px; line-height:1;
+    width:78px; height:78px; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .info-mid .label{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim); margin-bottom:3px; }
+  .info-mid .wilayah{ font-size:16px; font-weight:600; color:var(--stone); margin:0 0 8px; line-height:1.3; }
+  .info-meta{ display:flex; flex-wrap:wrap; gap:14px; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-dim); }
+  .info-meta b{ color:var(--text); font-weight:600; }
+  .info-right{ text-align:right; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .mode-badge{
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; padding:4px 8px;
+    border:1px solid var(--sig-low); color:var(--sig-low); white-space:nowrap;
+  }
+  .potensi-badge{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; padding:5px 9px;
+    border:1px solid var(--sig-mid); color:var(--sig-mid); white-space:nowrap;
+  }
+  .potensi-badge.safe{ border-color:var(--sig-low); color:var(--sig-low); }
 
-  .empty-state{
-    padding:40px 16px; text-align:center;
-    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-dim);
+  .links-row{
+    background:var(--panel-2); border:1px solid var(--line); border-top:none;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+    padding:8px 18px; font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim);
   }
-  .refresh-btn{
-    background:none; border:1px solid var(--line); color:var(--text-dim);
-    font-family:'IBM Plex Mono', monospace; font-size:10.5px;
-    padding:5px 10px; cursor:pointer;
-  }
-  .refresh-btn:hover{ color:var(--text); border-color:var(--stone-dim); }
-  .refresh-btn:focus-visible, a:focus-visible, .quake-row:focus-visible{
-    outline:2px solid var(--sig-mid); outline-offset:2px;
-  }
+  .links-row a{ color:var(--text-dim); text-decoration:none; margin-right:14px; }
+  .links-row a:hover{ color:var(--stone); }
 
-  @media (prefers-reduced-motion: reduce){
-    .dot{ animation:none; }
+  /* ---------- modal ---------- */
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(6,9,10,0.75); z-index:100;
+    display:none; align-items:center; justify-content:center; padding:20px;
   }
+  .modal-bg.show{ display:flex; }
+  .modal-box{
+    background:var(--panel); border:1px solid var(--line);
+    width:100%; max-width:760px; max-height:88vh; overflow-y:auto;
+  }
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 18px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel);
+  }
+  .modal-head h3{ margin:0; font-size:15px; font-weight:700; }
+  .modal-close{ background:none; border:1px solid var(--line); color:var(--text-dim); width:28px; height:28px; cursor:pointer; }
+  .modal-close:hover{ color:var(--text); border-color:var(--stone-dim); }
+  .modal-body{ padding:16px 18px; }
 
-  ::-webkit-scrollbar{ width:8px; }
+  table.data-table{ width:100%; border-collapse:collapse; font-family:'IBM Plex Mono',monospace; font-size:11.5px; }
+  table.data-table th{ text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); color:var(--text-dim); font-weight:600; font-size:10px; }
+  table.data-table td{ padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.data-table tr{ cursor:pointer; }
+  table.data-table tr:hover td{ background:rgba(255,255,255,0.04); }
+  .src-tag{ font-size:9px; padding:1px 5px; border:1px solid var(--line); color:var(--text-dim); }
+
+  #miniMap{ height:220px; width:100%; margin-top:10px; border:1px solid var(--line); }
+
+  .mmi-row{ display:grid; grid-template-columns:44px 1fr; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .mmi-num{ font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--sig-mid); }
+  .mmi-desc{ font-size:12.5px; line-height:1.5; color:var(--stone-dim); }
+
+  .glos-term{ font-weight:600; color:var(--stone); font-size:13px; margin-bottom:2px; }
+  .glos-def{ font-size:12.5px; color:var(--text-dim); line-height:1.5; margin-bottom:14px; }
+
+  .stat-summary{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:1px; background:var(--line); margin-bottom:14px; }
+  .stat-box{ background:var(--panel); padding:12px; text-align:center; }
+  .stat-box b{ display:block; font-family:'IBM Plex Mono',monospace; font-size:22px; color:var(--sig-mid); }
+  .stat-box span{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim); }
+  .stat-chart-box{ height:220px; margin-bottom:18px; }
+
+  .empty-state{ padding:24px; text-align:center; font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--text-dim); }
+  a.src-link{ color: var(--sig-mid); }
+
+  .hazard-filters{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .hazard-chip{
+    display:flex; align-items:center; gap:6px; font-family:'IBM Plex Mono',monospace; font-size:10.5px;
+    border:1px solid var(--line); padding:6px 10px; cursor:pointer; user-select:none; color:var(--text-dim);
+  }
+  .hazard-chip.active{ color:var(--text); border-color:var(--stone-dim); }
+  .hazard-chip input{ display:none; }
+  .hazard-icon{ width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; border-radius:50%; flex-shrink:0; }
+  .hazard-row{ display:grid; grid-template-columns:28px 1fr auto; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  .hazard-row:hover{ background:rgba(255,255,255,0.04); }
+  .hazard-row .title{ font-size:12.5px; color:var(--stone); margin-bottom:2px; }
+  .hazard-row .meta{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--text-dim); }
+  .hazard-link{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--sig-mid); text-decoration:none; align-self:center; }
+  .magma-cta{
+    display:block; text-align:center; margin-top:14px; padding:10px; border:1px solid var(--sig-mid);
+    color:var(--sig-mid); font-family:'IBM Plex Mono',monospace; font-size:11px; text-decoration:none;
+  }
+  .magma-cta:hover{ background:rgba(217,164,65,0.1); }
+
+  ::-webkit-scrollbar{ width:8px; height:8px; }
   ::-webkit-scrollbar-track{ background:var(--ink); }
   ::-webkit-scrollbar-thumb{ background:var(--line); }
+
+  @media (prefers-reduced-motion: reduce){ .dot{ animation:none; } }
+
+  @media (max-width: 880px){
+    .charts-row{ grid-template-columns:repeat(3,minmax(150px,1fr)); overflow-x:auto; }
+    .sidebar{ display:none; }
+    .sidebar.open{ display:flex; width:calc(100vw - 28px); max-height:50vh; top:64px; }
+    .sidebar-toggle{
+      display:block; position:absolute; top:64px; left:14px; z-index:20;
+      background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+      font-family:'IBM Plex Mono',monospace; font-size:10px; padding:8px 12px; cursor:pointer;
+    }
+    .info-card{ grid-template-columns:1fr; }
+    .info-right{ align-items:flex-start; flex-direction:row; flex-wrap:wrap; }
+    .mag-block{ width:64px; height:64px; font-size:26px; }
+  }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">
-    <h1>PANTAU GEMPA</h1>
-    <span class="sub">MONITOR SEISMIK INDONESIA</span>
-  </div>
-  <div class="status">
+<div id="map"></div>
+
+<div class="overlay">
+  <div class="brandbar">
     <span class="dot"></span>
-    <span id="statusText">MENGHUBUNGKAN KE BMKG…</span>
+    <div>
+      <h1>PANTAU GEMPA</h1>
+      <div class="sub" id="statusText">MENGHUBUNGKAN…</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool-btn" id="btnList">☰ DAFTAR REALTIME</button>
+    <button class="tool-btn" id="btnStat">▤ STATISTIK</button>
+    <button class="tool-btn" id="btnMMI">◈ SKALA MMI</button>
+    <button class="tool-btn" id="btnGlos">✎ GLOSARIUM</button>
+    <button class="tool-btn" id="btnHazards">⚠ BENCANA LAIN <span id="hazardBadge" class="mono" style="opacity:0.7"></span></button>
+    <button class="tool-btn" id="btnAbout">ℹ SUMBER DATA</button>
+  </div>
+
+  <button class="sidebar-toggle" id="sidebarToggle">☰ LOG GEMPA</button>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <span>LOG TERKINI</span>
+      <span id="sidebarCount">—</span>
+    </div>
+    <div class="sidebar-list" id="sidebarList">
+      <div class="empty-state">Memuat…</div>
+    </div>
+  </div>
+
+  <div class="bottom-wrap">
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">SEBARAN MAGNITUDO</div>
+        <div class="chart-box" id="chartPie"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">MAGNITUDO VS WAKTU</div>
+        <div class="chart-box" id="chartBubble"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">JUMLAH / HARI (14 HARI)</div>
+        <div class="chart-box" id="chartBar"></div>
+      </div>
+    </div>
+
+    <div class="info-card" id="infoCard" title="Klik untuk lihat statistik lengkap">
+      <div class="mag-block" id="heroMag">–.–</div>
+      <div class="info-mid">
+        <div class="label">GEMPABUMI TERBARU — SUMBER RESMI BMKG</div>
+        <p class="wilayah" id="heroWilayah">Memuat data…</p>
+        <div class="info-meta">
+          <span>WAKTU &nbsp;<b id="heroTime">–</b></span>
+          <span>KEDALAMAN &nbsp;<b id="heroDepth">–</b></span>
+          <span>KOORDINAT &nbsp;<b id="heroCoord">–</b></span>
+          <span>DIRASAKAN &nbsp;<b id="heroDirasakan">–</b></span>
+        </div>
+      </div>
+      <div class="info-right">
+        <div class="mode-badge">MODE OPERASIONAL</div>
+        <div class="potensi-badge safe" id="heroPotensi">POTENSI: MEMUAT…</div>
+      </div>
+    </div>
+
+    <div class="links-row">
+      <div>
+        <a href="#" id="linkList">Daftar Realtime</a>
+        <a href="#" id="linkMMI">Skala MMI</a>
+        <a href="#" id="linkGlos">Glosarium</a>
+        <a href="https://data.bmkg.go.id/gempabumi/" target="_blank" rel="noopener">Portal Data BMKG</a>
+      </div>
+      <span id="lastUpdate">© BMKG · USGS</span>
+    </div>
   </div>
 </div>
 
-<div class="hero" id="hero">
-  <div>
-    <div class="label">MAGNITUDO TERAKHIR</div>
-    <div class="mag-readout"><span id="heroMag">–.–</span><span class="unit">SR</span></div>
-  </div>
-  <div class="hero-mid">
-    <div class="label">LOKASI</div>
-    <p class="wilayah" id="heroWilayah">Memuat data gempabumi terkini…</p>
-    <div class="hero-meta">
-      <span>WAKTU LOKAL &nbsp;<b id="heroTime">–</b></span>
-      <span>KEDALAMAN &nbsp;<b id="heroDepth">–</b></span>
-      <span>KOORDINAT &nbsp;<b id="heroCoord">–</b></span>
+<!-- Modal: Daftar Realtime -->
+<div class="modal-bg" id="modalList">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Daftar Gempabumi Realtime — 7 Hari Terakhir</h3>
+      <button class="modal-close" data-close>✕</button>
     </div>
-  </div>
-  <div class="hero-flags">
-    <div class="flag safe" id="heroPotensi">POTENSI: MEMUAT…</div>
-    <button class="refresh-btn" id="refreshBtn">↻ MUAT ULANG</button>
-  </div>
-</div>
-
-<div class="layout">
-  <div class="panel">
-    <div class="panel-head">
-      <span>PETA SEBARAN — GEMPA M2.0+ (30 HARI TERAKHIR)</span>
-      <span id="mapCount">0 TITIK</span>
-    </div>
-    <div class="legend">
-      <span><i style="background:var(--sig-high)"></i>&lt; 50 KM</span>
-      <span><i style="background:var(--sig-mid)"></i>50–150 KM</span>
-      <span><i style="background:var(--sig-low)"></i>&gt; 150 KM</span>
-    </div>
-    <div id="map"></div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-head">
-      <span>LOG GEMPABUMI TERKINI — M2.0+</span>
-      <span id="listCount">—</span>
-    </div>
-    <div class="ticker" id="tickerList">
-      <div class="empty-state">Memuat data…</div>
-    </div>
-  </div>
-
-  <div class="felt">
-    <div class="panel-head">
-      <span>DIRASAKAN OLEH WARGA</span>
-      <span id="feltCount">—</span>
-    </div>
-    <div class="felt-grid" id="feltGrid">
-      <div class="empty-state">Memuat data…</div>
+    <div class="modal-body">
+      <table class="data-table">
+        <thead><tr><th>Mag</th><th>Wilayah / Waktu (WIB)</th><th>Kedalaman</th><th>Sumber</th></tr></thead>
+        <tbody id="listTableBody"><tr><td colspan="4" class="empty-state">Memuat…</td></tr></tbody>
+      </table>
+      <div id="miniMap"></div>
     </div>
   </div>
 </div>
 
-<footer>
-  <span>Sumber data: <a href="https://data.bmkg.go.id/gempabumi/" target="_blank" rel="noopener">BMKG</a> (gempa terbaru &amp; dirasakan) · <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> (sebaran M2.0+). Diperbarui otomatis tiap 60 detik.</span>
-  <span id="lastUpdate">—</span>
-</footer>
+<!-- Modal: Statistik -->
+<div class="modal-bg" id="modalStat">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Statistik Gempabumi (30 Hari Terakhir)</h3>
+      <button class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="stat-summary" id="statSummary"></div>
+      <div class="chart-title" style="padding-left:0;margin-bottom:6px;">SEBARAN MAGNITUDO</div>
+      <div class="stat-chart-box" id="statChartPie"></div>
+      <div class="chart-title" style="padding-left:0;margin-bottom:6px;">MAGNITUDO VS WAKTU (WARNA = KEDALAMAN)</div>
+      <div class="stat-chart-box" id="statChartBubble"></div>
+      <div class="chart-title" style="padding-left:0;margin-bottom:6px;">JUMLAH GEMPA PER HARI</div>
+      <div class="stat-chart-box" id="statChartBar"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Skala MMI -->
+<div class="modal-bg" id="modalMMI">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Skala Intensitas MMI (Modified Mercalli Intensity)</h3>
+      <button class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body" id="mmiBody"></div>
+  </div>
+</div>
+
+<!-- Modal: Glosarium -->
+<div class="modal-bg" id="modalGlos">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Glosarium Istilah Gempabumi</h3>
+      <button class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body" id="glosBody"></div>
+  </div>
+</div>
+
+<!-- Modal: Bencana Alam Lainnya -->
+<div class="modal-bg" id="modalHazards">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Bencana Alam Lainnya di Indonesia</h3>
+      <button class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;line-height:1.6;color:var(--text-dim);margin-top:0;">
+        Data banjir, erupsi gunung berapi, tanah longsor, dan kebakaran hutan dari sumber publik terpisah (lihat "Sumber Data").
+        Cakupan tidak selengkap gempabumi — beberapa jenis bencana hanya tercatat jika terdeteksi oleh satelit atau dilaporkan warga.
+      </p>
+      <div class="hazard-filters" id="hazardFilters">
+        <label class="hazard-chip active" data-type="flood"><input type="checkbox" checked><span class="hazard-icon" style="background:#3B82C4">🌊</span>Banjir</label>
+        <label class="hazard-chip active" data-type="volcano"><input type="checkbox" checked><span class="hazard-icon" style="background:#E0663D">🌋</span>Gunung Berapi</label>
+        <label class="hazard-chip active" data-type="landslide"><input type="checkbox" checked><span class="hazard-icon" style="background:#8B5E3C">⛰️</span>Tanah Longsor</label>
+        <label class="hazard-chip active" data-type="wildfire"><input type="checkbox" checked><span class="hazard-icon" style="background:#C1440E">🔥</span>Kebakaran Hutan</label>
+      </div>
+      <div id="hazardList"><div class="empty-state">Memuat…</div></div>
+      <a class="magma-cta" href="https://magma.esdm.go.id/v1/gunung-api/tingkat-aktivitas" target="_blank" rel="noopener">
+        ↗ Lihat status resmi Level I–IV seluruh gunung api di MAGMA Indonesia (PVMBG/ESDM)
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Sumber Data -->
+<div class="modal-bg" id="modalAbout">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Sumber Data</h3>
+      <button class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;line-height:1.7;color:var(--stone-dim);">
+        Situs ini menampilkan data kebencanaan secara langsung dari sumber-sumber publik berikut, tanpa modifikasi nilai:
+      </p>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Gempabumi &amp; Tsunami</b></p>
+      <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
+        <li><b style="color:var(--stone)">BMKG — autogempa.json</b>: gempabumi terbaru (panel info utama).</li>
+        <li><b style="color:var(--stone)">BMKG — gempaterkini.json</b>: daftar 15 gempabumi M5.0+ terkini.</li>
+        <li><b style="color:var(--stone)">BMKG — gempadirasakan.json</b>: daftar 15 gempabumi yang dirasakan warga.</li>
+        <li><b style="color:var(--stone)">USGS Earthquake API</b>: pelengkap cakupan magnitudo kecil (M2.0+), karena BMKG hanya menyediakan feed publik untuk M5.0+.</li>
+      </ul>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Banjir, Gunung Berapi, Longsor &amp; Kebakaran Hutan</b></p>
+      <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
+        <li><b style="color:var(--stone)">PetaBencana.id (Yayasan Peta Bencana)</b>: laporan banjir warga terverifikasi berbasis media sosial, saat ini mencakup Jakarta dan sejumlah kota besar lain.</li>
+        <li><b style="color:var(--stone)">NASA EONET v3</b>: deteksi satelit untuk erupsi gunung berapi, tanah longsor, dan kebakaran hutan secara global, disaring untuk wilayah Indonesia.</li>
+        <li><b style="color:var(--stone)">MAGMA Indonesia (PVMBG/ESDM)</b>: status resmi Level I–IV tiap gunung api — ditautkan langsung (tidak disematkan) karena situs sumber tidak menyediakan API publik yang stabil.</li>
+      </ul>
+      <p style="font-size:12px;line-height:1.7;color:var(--text-dim);">
+        Sesuai ketentuan penggunaan data terbuka BMKG (<a class="src-link" href="https://github.com/infoBMKG/data-gempabumi" target="_blank" rel="noopener">infoBMKG/data-gempabumi</a>),
+        BMKG dicantumkan sebagai sumber data resmi. Arah mata angin dan nama provinsi pada lokasi gempa diterjemahkan/dilengkapi otomatis
+        berdasarkan koordinat episenter — nilai ilmiah (magnitudo, kedalaman, waktu, koordinat) tidak diubah. Data banjir/gunung berapi/longsor/kebakaran
+        bersifat pelengkap dan mungkin tidak selengkap atau seresmi data gempabumi BMKG.
+      </p>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+/* ================= SUMBER DATA ================= */
 const PROXIES = [
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
@@ -318,23 +439,15 @@ const PROXIES = [
 ];
 const URLS = {
   auto: 'https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json',
+  terkini: 'https://data.bmkg.go.id/DataMKG/TEWS/gempaterkini.json',
   dirasakan: 'https://data.bmkg.go.id/DataMKG/TEWS/gempadirasakan.json'
 };
-// Wilayah Indonesia (bounding box) + magnitudo minimum 2.0 — BMKG hanya menyediakan feed
-// publik untuk M5.0+, jadi untuk mendeteksi gempa kecil (M2.0+) dipakai feed USGS yang
-// mencakup jaringan seismik global termasuk event kecil di Indonesia, dan sudah CORS-enabled.
-function buildUSGSUrl(){
-  const start = new Date(Date.now() - 30*24*3600*1000).toISOString();
+
+function buildUSGSUrl(days){
+  const start = new Date(Date.now() - days*24*3600*1000).toISOString();
   const params = new URLSearchParams({
-    format: 'geojson',
-    starttime: start,
-    minmagnitude: '2',
-    limit: '200',
-    orderby: 'time',
-    minlatitude: '-11',
-    maxlatitude: '6',
-    minlongitude: '95',
-    maxlongitude: '141'
+    format:'geojson', starttime:start, minmagnitude:'2', limit:'250', orderby:'time',
+    minlatitude:'-11', maxlatitude:'6', minlongitude:'95', maxlongitude:'141'
   });
   return `https://earthquake.usgs.gov/fdsnws/event/1/query?${params.toString()}`;
 }
@@ -343,60 +456,63 @@ async function fetchWithFallback(url){
   let lastErr;
   for(const wrap of PROXIES){
     try{
-      const res = await fetch(wrap(url), { cache: 'no-store' });
+      const res = await fetch(wrap(url), { cache:'no-store' });
       if(!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     }catch(e){ lastErr = e; }
   }
   throw lastErr;
 }
-
-// USGS sudah mendukung CORS langsung, jadi dicoba dulu tanpa proxy sebelum fallback.
 async function fetchUSGS(url){
   try{
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { cache:'no-store' });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     return await res.json();
-  }catch(e){
-    return await fetchWithFallback(url);
-  }
+  }catch(e){ return await fetchWithFallback(url); }
+}
+
+/* ================= NORMALISASI ================= */
+function parseCoord(coordStr){
+  const [lat, lon] = (coordStr||'').split(',').map(s => parseFloat(s.trim()));
+  return { lat, lon };
 }
 
 function normalizeUSGS(geojson){
-  return (geojson.features || [])
-    .map(f => {
-      const [lon, lat, depth] = f.geometry.coordinates;
-      return {
-        id: f.id,
-        mag: f.properties.mag,
-        place: f.properties.place || 'Lokasi tidak diketahui',
-        depthKm: depth,
-        lat, lon,
-        timeMs: f.properties.time
-      };
-    })
-    .filter(q => q.mag !== null && !isNaN(q.mag) && Number.isFinite(q.lat) && Number.isFinite(q.lon));
+  return (geojson.features || []).map(f => {
+    const [lon, lat, depth] = f.geometry.coordinates;
+    return {
+      id: 'usgs-' + f.id, source:'USGS',
+      mag: f.properties.mag, place: f.properties.place || 'Lokasi tidak diketahui',
+      depthKm: depth, lat, lon, timeMs: f.properties.time
+    };
+  }).filter(q => q.mag !== null && !isNaN(q.mag) && Number.isFinite(q.lat) && Number.isFinite(q.lon));
 }
 
-function relativeTimeMs(ms){
-  const diffMs = Date.now() - ms;
-  const mins = Math.floor(diffMs / 60000);
-  if(mins < 1) return 'baru saja';
-  if(mins < 60) return mins + ' menit lalu';
-  const hrs = Math.floor(mins/60);
-  if(hrs < 24) return hrs + ' jam lalu';
-  const days = Math.floor(hrs/24);
-  return days + ' hari lalu';
+function normalizeBMKGList(gempaArr){
+  return (gempaArr || []).map(g => {
+    const { lat, lon } = parseCoord(g.Coordinates);
+    return {
+      id: 'bmkg-' + g.DateTime + '-' + g.Coordinates, source:'BMKG',
+      mag: parseFloat(g.Magnitude), place: g.Wilayah,
+      depthKm: parseFloat(g.Kedalaman), lat, lon,
+      timeMs: new Date(g.DateTime).getTime(), raw: g
+    };
+  }).filter(q => Number.isFinite(q.lat) && Number.isFinite(q.lon) && !isNaN(q.mag));
 }
 
-function fmtTimeWIB(ms){
-  return new Date(ms).toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta', hour:'2-digit', minute:'2-digit',
-    day:'2-digit', month:'2-digit', year:'numeric'
-  });
+// Gabungkan BMKG (resmi, M5.0+) dan USGS (pelengkap M2.0+), hilangkan duplikat event
+// yang sama (selisih waktu <3 menit & jarak berdekatan), memprioritaskan data BMKG.
+function dedupeQuakes(list){
+  const result = [];
+  for(const q of list){
+    const dup = result.find(r => Math.abs(r.timeMs - q.timeMs) < 3*60000 && Math.abs(r.lat-q.lat) < 0.6 && Math.abs(r.lon-q.lon) < 0.6);
+    if(!dup) result.push(q);
+    else if(dup.source === 'USGS' && q.source === 'BMKG') Object.assign(dup, q);
+  }
+  return result.sort((a,b) => b.timeMs - a.timeMs);
 }
 
-// Terjemahan arah mata angin ke Bahasa Indonesia, tanpa singkatan, diawali kata "arah".
+/* ================= TERJEMAHAN ARAH MATA ANGIN & PROVINSI ================= */
 const COMPASS_ID = {
   N:'Utara', NNE:'Utara Timur Laut', NE:'Timur Laut', ENE:'Timur Timur Laut',
   E:'Timur', ESE:'Timur Tenggara', SE:'Tenggara', SSE:'Selatan Tenggara',
@@ -405,11 +521,6 @@ const COMPASS_ID = {
 };
 const COMPASS_WORDS_ID = ['Utara','Selatan','Timur','Barat','Laut','Daya','Tenggara'];
 
-// Perkiraan cakupan wilayah 38 provinsi Indonesia (daerah tingkat 1) berbasis kotak
-// koordinat (bounding box). Ini adalah pendekatan sederhana untuk menentukan provinsi
-// dari titik episenter — bukan batas administratif presisi tinggi, tapi cukup akurat
-// untuk keperluan pelaporan lokasi gempa. Diurutkan dari wilayah kecil/spesifik ke besar
-// agar percocokan pertama pada area tumpang-tindih lebih tepat.
 const PROVINSI_BBOX = [
   { nama:'DKI Jakarta', latMin:-6.4, latMax:-5.9, lonMin:106.6, lonMax:107.0 },
   { nama:'DI Yogyakarta', latMin:-8.3, latMax:-7.5, lonMin:110.0, lonMax:110.8 },
@@ -450,15 +561,11 @@ const PROVINSI_BBOX = [
   { nama:'Papua Selatan', latMin:-9.5, latMax:-5.0, lonMin:137.0, lonMax:141.5 },
   { nama:'Papua', latMin:-3.0, latMax:1.0, lonMin:137.5, lonMax:141.5 }
 ];
-
 function getProvinsi(lat, lon){
   if(!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   const hit = PROVINSI_BBOX.find(p => lat >= p.latMin && lat <= p.latMax && lon >= p.lonMin && lon <= p.lonMax);
   return hit ? hit.nama : null;
 }
-
-// Mengganti akhiran nama negara generik ("Indonesia") dengan nama provinsi (daerah
-// tingkat 1) hasil resolusi koordinat episenter — sesuai kebijakan redaksi.
 function gantiIndonesiaDenganProvinsi(text, lat, lon){
   if(!text) return text;
   if(/,\s*Indonesia\s*$/i.test(text)){
@@ -467,17 +574,14 @@ function gantiIndonesiaDenganProvinsi(text, lat, lon){
   }
   return text;
 }
-
 function terjemahArahMataAngin(text){
   if(!text) return text;
-  // Format USGS, contoh: "18 km SE of Bengkulu, Indonesia"
   const usgsMatch = text.match(/^(\d+\s*km)\s+([NSEW]{1,3})\s+of\s+(.+)$/i);
   if(usgsMatch){
     const [, dist, dirAbbr, place] = usgsMatch;
     const dirID = COMPASS_ID[dirAbbr.toUpperCase()];
     if(dirID) return `${dist} arah ${dirID} dari ${place}`;
   }
-  // Format BMKG, contoh: "24 km BaratDaya MENTAWAI-SUMBAR"
   const bmkgMatch = text.match(/^(\d+\s*km)\s+([A-Za-z]+)\s+(.+)$/);
   if(bmkgMatch){
     const [, dist, dirWord, place] = bmkgMatch;
@@ -487,50 +591,50 @@ function terjemahArahMataAngin(text){
   }
   return text;
 }
-
-// Gabungan: terjemahkan arah mata angin lalu ganti "Indonesia" dengan nama provinsi
-// yang sebenarnya berdasarkan koordinat episenter.
 function formatLokasiGempa(text, lat, lon){
   return gantiIndonesiaDenganProvinsi(terjemahArahMataAngin(text), lat, lon);
 }
 
+/* ================= HELPER TAMPILAN ================= */
 function depthColor(km){
   if(km <= 50) return getComputedStyle(document.documentElement).getPropertyValue('--sig-high').trim();
   if(km <= 150) return getComputedStyle(document.documentElement).getPropertyValue('--sig-mid').trim();
   return getComputedStyle(document.documentElement).getPropertyValue('--sig-low').trim();
 }
-
-function parseCoord(coordStr){
-  const [lat, lon] = coordStr.split(',').map(s => parseFloat(s.trim()));
-  return { lat, lon };
+function magColor(mag){
+  return mag >= 5 ? 'var(--sig-high)' : (mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
 }
-
-function relativeTime(dateTimeStr){
-  // BMKG DateTime format: YYYY-MM-DDTHH:mm:ss+07:00
-  const then = new Date(dateTimeStr);
-  const diffMs = Date.now() - then.getTime();
-  const mins = Math.floor(diffMs / 60000);
+function relativeTimeMs(ms){
+  const mins = Math.floor((Date.now() - ms) / 60000);
   if(mins < 1) return 'baru saja';
   if(mins < 60) return mins + ' menit lalu';
   const hrs = Math.floor(mins/60);
   if(hrs < 24) return hrs + ' jam lalu';
-  const days = Math.floor(hrs/24);
-  return days + ' hari lalu';
+  return Math.floor(hrs/24) + ' hari lalu';
+}
+function fmtTimeWIB(ms){
+  return new Date(ms).toLocaleString('id-ID', { timeZone:'Asia/Jakarta', hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric' });
 }
 
-let map, markerLayer, markersById = {};
+/* ================= PETA (Esri satelit hibrid, tanpa opsi ganti peta) ================= */
+let map, markerLayer, markersById = {}, miniMap, miniMarkerLayer;
 function initMap(){
   map = L.map('map', { zoomControl:true, attributionControl:false }).setView([-2.5, 118], 5);
-  // Peta hibrid Esri: citra satelit + layer referensi (batas wilayah & label) di atasnya.
-  // Keduanya ditambahkan langsung tanpa kontrol layer — tidak ada opsi ganti peta.
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, minZoom: 3,
-    attribution: 'Esri, Maxar, Earthstar Geographics'
+    maxZoom:19, minZoom:3, attribution:'Esri, Maxar, Earthstar Geographics'
   }).addTo(map);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, minZoom: 3
+    maxZoom:19, minZoom:3
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
+}
+
+function popupHtml(q){
+  return `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
+    <b>M${q.mag.toFixed(1)}</b> — ${formatLokasiGempa(q.place, q.lat, q.lon)}<br>
+    Kedalaman: ${Math.round(q.depthKm)} km<br>
+    Waktu: ${fmtTimeWIB(q.timeMs)} WIB<br>
+    Sumber: ${q.source}</div>`;
 }
 
 function plotQuakes(list){
@@ -539,120 +643,411 @@ function plotQuakes(list){
   list.forEach(q => {
     const color = depthColor(q.depthKm);
     const marker = L.circleMarker([q.lat, q.lon], {
-      radius: Math.max(4, q.mag * 2.4),
-      color: color,
-      weight: 1.2,
-      fillColor: color,
-      fillOpacity: 0.35
-    }).bindPopup(
-      `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
-         <b>M${q.mag.toFixed(1)}</b> — ${formatLokasiGempa(q.place, q.lat, q.lon)}<br>
-         Kedalaman: ${Math.round(q.depthKm)} km<br>
-         Waktu: ${fmtTimeWIB(q.timeMs)} WIB
-       </div>`
-    );
-    // Klik langsung pada titik di peta juga memperdalam zoom ke lokasi tersebut.
-    marker.on('click', () => {
-      map.flyTo([q.lat, q.lon], 13, { duration: 1.1 });
-    });
+      radius: Math.max(4, q.mag * 2.4), color, weight:1.2, fillColor:color, fillOpacity:0.4
+    }).bindPopup(popupHtml(q));
+    marker.on('click', () => map.flyTo([q.lat, q.lon], 13, { duration:1.1 }));
     markerLayer.addLayer(marker);
     markersById[q.id] = marker;
   });
-  document.getElementById('mapCount').textContent = list.length + ' TITIK';
 }
 
+function zoomKe(q){
+  map.flyTo([q.lat, q.lon], 13, { duration:1.1 });
+  const marker = markersById[q.id];
+  if(marker) map.once('moveend', () => marker.openPopup());
+}
+
+/* ================= RENDER: HERO ================= */
 function renderHero(g){
+  const { lat, lon } = parseCoord(g.Coordinates);
+  const mag = parseFloat(g.Magnitude);
   document.getElementById('heroMag').textContent = g.Magnitude;
-  const { lat: heroLat, lon: heroLon } = parseCoord(g.Coordinates);
-  document.getElementById('heroWilayah').textContent = formatLokasiGempa(g.Wilayah, heroLat, heroLon);
+  document.getElementById('heroMag').style.background = mag >= 5 ? 'var(--sig-high)' : (mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
+  document.getElementById('heroWilayah').textContent = formatLokasiGempa(g.Wilayah, lat, lon);
   document.getElementById('heroTime').textContent = `${g.Tanggal}, ${g.Jam}`;
   document.getElementById('heroDepth').textContent = g.Kedalaman;
   document.getElementById('heroCoord').textContent = g.Coordinates;
-  const mag = parseFloat(g.Magnitude);
-  const readout = document.getElementById('heroMag');
-  readout.style.color = mag >= 5 ? 'var(--sig-high)' : (mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
+  document.getElementById('heroDirasakan').textContent = g.Dirasakan || 'tidak ada laporan';
   const potensi = document.getElementById('heroPotensi');
-  const teksPotensi = g.Potensi || 'Tidak berpotensi tsunami';
-  potensi.textContent = 'POTENSI: ' + teksPotensi.toUpperCase();
-  potensi.classList.toggle('safe', /tidak/i.test(teksPotensi));
+  const teks = g.Potensi || 'Tidak berpotensi tsunami';
+  potensi.textContent = 'POTENSI: ' + teks.toUpperCase();
+  potensi.classList.toggle('safe', /tidak/i.test(teks));
 }
 
-function renderTicker(list){
-  const el = document.getElementById('tickerList');
-  if(!list.length){
-    el.innerHTML = '<div class="empty-state">Belum ada data. Coba muat ulang.</div>';
-    return;
-  }
+/* ================= RENDER: SIDEBAR LOG ================= */
+function renderSidebar(list){
+  const el = document.getElementById('sidebarList');
+  document.getElementById('sidebarCount').textContent = list.length + ' EVENT';
+  if(!list.length){ el.innerHTML = '<div class="empty-state">Belum ada data.</div>'; return; }
   el.innerHTML = '';
-  list.forEach(q => {
-    const color = q.mag >= 5 ? 'var(--sig-high)' : (q.mag >= 4 ? 'var(--sig-mid)' : 'var(--sig-low)');
+  list.slice(0, 40).forEach(q => {
     const row = document.createElement('div');
-    row.className = 'quake-row';
-    row.tabIndex = 0;
+    row.className = 'mini-row';
     row.innerHTML = `
-      <div class="quake-mag" style="color:${color};border-color:${color}">${q.mag.toFixed(1)}</div>
-      <div class="quake-info">
-        <div class="loc">${formatLokasiGempa(q.place, q.lat, q.lon)}</div>
-        <div class="meta">KEDALAMAN ${Math.round(q.depthKm)} KM · ${q.lat.toFixed(2)}, ${q.lon.toFixed(2)}</div>
-      </div>
-      <div class="quake-time">${relativeTimeMs(q.timeMs)}<br>${fmtTimeWIB(q.timeMs)}</div>
-    `;
-    row.addEventListener('click', () => {
-      map.flyTo([q.lat, q.lon], 13, { duration: 1.1 });
-      const marker = markersById[q.id];
-      if(marker) map.once('moveend', () => marker.openPopup());
-    });
+      <div class="mini-mag" style="color:${magColor(q.mag)};border-color:${magColor(q.mag)}">${q.mag.toFixed(1)}</div>
+      <div>
+        <div class="mini-loc">${formatLokasiGempa(q.place, q.lat, q.lon)}</div>
+        <div class="mini-time">${relativeTimeMs(q.timeMs)} · ${q.source}</div>
+      </div>`;
+    row.addEventListener('click', () => zoomKe(q));
     el.appendChild(row);
   });
-  document.getElementById('listCount').textContent = list.length + ' EVENT';
 }
 
-function renderFelt(list){
-  const el = document.getElementById('feltGrid');
-  if(!list.length){
-    el.innerHTML = '<div class="empty-state">Belum ada data dirasakan.</div>';
+/* ================= RENDER: MODAL DAFTAR REALTIME ================= */
+function renderListModal(list){
+  const body = document.getElementById('listTableBody');
+  if(!list.length){ body.innerHTML = '<tr><td colspan="4" class="empty-state">Belum ada data.</td></tr>'; return; }
+  body.innerHTML = '';
+  list.forEach(q => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:${magColor(q.mag)};font-weight:700;">${q.mag.toFixed(1)}</td>
+      <td>${formatLokasiGempa(q.place, q.lat, q.lon)}<br><span style="color:var(--text-dim)">${fmtTimeWIB(q.timeMs)} WIB</span></td>
+      <td>${Math.round(q.depthKm)} km</td>
+      <td><span class="src-tag">${q.source}</span></td>`;
+    tr.addEventListener('click', () => {
+      miniMap.flyTo([q.lat, q.lon], 9);
+      const mk = L.circleMarker([q.lat, q.lon], { radius:8, color:magColor(q.mag), fillColor:magColor(q.mag), fillOpacity:0.6 });
+      miniMarkerLayer.clearLayers();
+      mk.addTo(miniMarkerLayer).bindPopup(popupHtml(q)).openPopup();
+    });
+    body.appendChild(tr);
+  });
+}
+
+/* ================= CHARTS ================= */
+function buildPieData(list){
+  const bins = [
+    { name:'M2.0–2.9', min:2, max:3, color:'#4A8B7C' },
+    { name:'M3.0–3.9', min:3, max:4, color:'#5D9E8A' },
+    { name:'M4.0–4.9', min:4, max:5, color:'#D9A441' },
+    { name:'M5.0–5.9', min:5, max:6, color:'#E0883D' },
+    { name:'M6.0–6.9', min:6, max:7, color:'#C1440E' },
+    { name:'M7.0+', min:7, max:99, color:'#8C2E08' }
+  ];
+  return bins.map(b => ({
+    name:b.name, color:b.color,
+    y: list.filter(q => q.mag >= b.min && q.mag < b.max).length
+  })).filter(b => b.y > 0);
+}
+
+function chartBaseFont(){
+  return { fontFamily:"'IBM Plex Mono', monospace", color:'#8FA0A3', fontSize:'9px' };
+}
+
+function renderPie(targetId, list){
+  Highcharts.chart(targetId, {
+    chart:{ type:'pie', backgroundColor:'transparent' },
+    title:{ text:null }, credits:{ enabled:false }, exporting:{ enabled:false },
+    legend:{ enabled:false },
+    tooltip:{ style: chartBaseFont() },
+    plotOptions:{ pie:{ innerSize:'55%', dataLabels:{ enabled:true, distance:6, style:{ ...chartBaseFont(), textOutline:'none' } } } },
+    series:[{ name:'Jumlah', data: buildPieData(list) }]
+  });
+}
+
+function renderBubble(targetId, list){
+  const points = list.map(q => ({ x:q.timeMs, y:q.mag, z:q.mag, color:depthColor(q.depthKm),
+    custom:{ place:formatLokasiGempa(q.place,q.lat,q.lon), depth:Math.round(q.depthKm) } }));
+  Highcharts.chart(targetId, {
+    chart:{ type:'bubble', backgroundColor:'transparent', plotBorderWidth:0 },
+    title:{ text:null }, credits:{ enabled:false }, exporting:{ enabled:false }, legend:{ enabled:false },
+    xAxis:{ type:'datetime', labels:{ style:chartBaseFont() }, gridLineWidth:0, lineColor:'#2C3A3E' },
+    yAxis:{ title:{ text:null }, labels:{ style:chartBaseFont() }, gridLineColor:'#2C3A3E' },
+    tooltip:{ style:chartBaseFont(), pointFormatter: function(){
+      return `M${this.y.toFixed(1)} · ${this.custom.depth}km<br>${this.custom.place}`;
+    }},
+    plotOptions:{ bubble:{ minSize:4, maxSize:14 } },
+    series:[{ name:'Gempa', data: points, colorByPoint:false }]
+  });
+}
+
+function renderBar(targetId, list){
+  const days = {};
+  const now = new Date();
+  for(let i=13;i>=0;i--){
+    const d = new Date(now); d.setDate(now.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    days[key] = 0;
+  }
+  list.forEach(q => {
+    const key = new Date(q.timeMs).toISOString().slice(0,10);
+    if(key in days) days[key]++;
+  });
+  const cats = Object.keys(days);
+  Highcharts.chart(targetId, {
+    chart:{ type:'column', backgroundColor:'transparent' },
+    title:{ text:null }, credits:{ enabled:false }, exporting:{ enabled:false }, legend:{ enabled:false },
+    xAxis:{ categories: cats.map(c => c.slice(5)), labels:{ style:chartBaseFont() }, lineColor:'#2C3A3E' },
+    yAxis:{ title:{ text:null }, labels:{ style:chartBaseFont() }, gridLineColor:'#2C3A3E' },
+    tooltip:{ style:chartBaseFont() },
+    plotOptions:{ column:{ color:'#D9A441', borderWidth:0, pointPadding:0.08, groupPadding:0.05 } },
+    series:[{ name:'Jumlah', data: cats.map(c => days[c]) }]
+  });
+}
+
+function renderStatSummary(list){
+  const el = document.getElementById('statSummary');
+  const avgMag = list.length ? (list.reduce((s,q)=>s+q.mag,0)/list.length).toFixed(2) : '–';
+  const maxMag = list.length ? Math.max(...list.map(q=>q.mag)).toFixed(1) : '–';
+  const avgDepth = list.length ? Math.round(list.reduce((s,q)=>s+q.depthKm,0)/list.length) : '–';
+  el.innerHTML = `
+    <div class="stat-box"><b>${list.length}</b><span>TOTAL EVENT / 30 HARI</span></div>
+    <div class="stat-box"><b>${maxMag}</b><span>MAGNITUDO TERBESAR</span></div>
+    <div class="stat-box"><b>${avgMag}</b><span>RATA-RATA MAGNITUDO</span></div>
+    <div class="stat-box"><b>${avgDepth} km</b><span>RATA-RATA KEDALAMAN</span></div>`;
+}
+
+/* ================= MMI & GLOSARIUM (konten edukasi, ditulis ulang) ================= */
+const MMI_DATA = [
+  ['I','Tidak dirasakan oleh manusia, kecuali dalam keadaan luar biasa oleh sedikit orang.'],
+  ['II','Dirasakan oleh beberapa orang, terutama yang berada di lantai atas bangunan.'],
+  ['III','Dirasakan nyata di dalam rumah, terasa seperti getaran akibat truk lewat.'],
+  ['IV','Pada siang hari dirasakan banyak orang di dalam rumah, di luar rumah hanya sebagian.'],
+  ['V','Dirasakan hampir semua penduduk, banyak yang terbangun, barang-barang kecil bergeser.'],
+  ['VI','Dirasakan semua penduduk, banyak yang terkejut dan lari keluar, kerusakan ringan mulai terjadi.'],
+  ['VII','Setiap orang keluar rumah, kerusakan ringan pada bangunan berkonstruksi baik, kerusakan berat pada konstruksi buruk.'],
+  ['VIII','Kerusakan ringan pada bangunan berkonstruksi kuat, kerusakan besar pada bangunan biasa, cerobong asap dan monumen roboh.'],
+  ['IX','Kerusakan berat pada bangunan kuat, rangka bangunan bergeser, tanah retak nyata.'],
+  ['X','Sebagian besar bangunan dari konstruksi kayu maupun batu bata hancur, tanah retak parah, rel kereta melengkung.'],
+  ['XI','Sedikit bangunan tersisa, jembatan rusak, rel melengkung hebat, tanah longsor besar.'],
+  ['XII','Kerusakan total, gelombang terlihat pada permukaan tanah, pandangan dan garis waterpass terganggu.']
+];
+function renderMMI(){
+  document.getElementById('mmiBody').innerHTML =
+    '<p style="font-size:12.5px;color:var(--text-dim);margin-bottom:12px;">Skala MMI mengukur intensitas guncangan gempabumi berdasarkan dampak yang dirasakan dan kerusakan yang teramati di suatu wilayah — berbeda dengan magnitudo yang mengukur kekuatan sumber gempa.</p>' +
+    MMI_DATA.map(([num,desc]) => `<div class="mmi-row"><div class="mmi-num">${num}</div><div class="mmi-desc">${desc}</div></div>`).join('');
+}
+
+const GLOSARIUM = [
+  ['Magnitudo','Ukuran kekuatan energi yang dilepaskan oleh sumber gempabumi, dihitung dari rekaman seismograf.'],
+  ['Episentrum','Titik di permukaan bumi yang berada tepat di atas titik sumber gempabumi (hiposentrum).'],
+  ['Hiposentrum','Titik di dalam bumi tempat terjadinya pelepasan energi gempabumi, disebut juga fokus gempa.'],
+  ['Kedalaman','Jarak vertikal dari permukaan bumi ke hiposentrum, memengaruhi seberapa kuat guncangan dirasakan di permukaan.'],
+  ['Gempa Dangkal','Gempabumi dengan kedalaman kurang dari 50 km, umumnya berpotensi kerusakan lebih besar di permukaan.'],
+  ['Gempa Menengah','Gempabumi dengan kedalaman antara 50–150 km.'],
+  ['Gempa Dalam','Gempabumi dengan kedalaman lebih dari 150 km, guncangan di permukaan umumnya lebih lemah.'],
+  ['Potensi Tsunami','Status yang menunjukkan apakah suatu gempabumi berpotensi memicu gelombang tsunami, berdasarkan lokasi, kedalaman, dan magnitudo.'],
+  ['Susulan (Aftershock)','Gempabumi yang terjadi setelah gempa utama di area yang berdekatan, umumnya dengan magnitudo lebih kecil.']
+];
+function renderGlosarium(){
+  document.getElementById('glosBody').innerHTML = GLOSARIUM
+    .map(([term,def]) => `<div class="glos-term">${term}</div><div class="glos-def">${def}</div>`).join('');
+}
+
+/* ================= MODAL CONTROL ================= */
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', (e) => closeModal(e.target.closest('.modal-bg').id));
+});
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', (e) => { if(e.target === bg) closeModal(bg.id); });
+});
+
+let miniMapInited = false;
+function ensureMiniMap(){
+  if(miniMapInited) return;
+  miniMap = L.map('miniMap', { zoomControl:false, attributionControl:false }).setView([-2.5,118], 4);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19 }).addTo(miniMap);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom:19 }).addTo(miniMap);
+  miniMarkerLayer = L.layerGroup().addTo(miniMap);
+  miniMapInited = true;
+}
+
+document.getElementById('btnList').addEventListener('click', () => { openModal('modalList'); ensureMiniMap(); setTimeout(()=>miniMap.invalidateSize(),50); });
+document.getElementById('linkList').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('btnList').click(); });
+document.getElementById('btnStat').addEventListener('click', () => openModal('modalStat'));
+document.getElementById('infoCard').addEventListener('click', () => openModal('modalStat'));
+document.getElementById('btnMMI').addEventListener('click', () => openModal('modalMMI'));
+document.getElementById('linkMMI').addEventListener('click', (e) => { e.preventDefault(); openModal('modalMMI'); });
+document.getElementById('btnGlos').addEventListener('click', () => openModal('modalGlos'));
+document.getElementById('linkGlos').addEventListener('click', (e) => { e.preventDefault(); openModal('modalGlos'); });
+document.getElementById('btnAbout').addEventListener('click', () => openModal('modalAbout'));
+document.getElementById('sidebarToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+
+/* ================= BENCANA LAIN: PETABENCANA + NASA EONET ================= */
+const INDO_BBOX = { latMin:-11, latMax:6, lonMin:95, lonMax:141 };
+function dalamIndonesia(lat, lon){
+  return Number.isFinite(lat) && Number.isFinite(lon) &&
+    lat >= INDO_BBOX.latMin && lat <= INDO_BBOX.latMax && lon >= INDO_BBOX.lonMin && lon <= INDO_BBOX.lonMax;
+}
+
+const HAZARD_META = {
+  flood:     { label:'Banjir',          icon:'🌊', color:'#3B82C4' },
+  volcano:   { label:'Gunung Berapi',   icon:'🌋', color:'#E0663D' },
+  landslide: { label:'Tanah Longsor',   icon:'⛰️', color:'#8B5E3C' },
+  wildfire:  { label:'Kebakaran Hutan', icon:'🔥', color:'#C1440E' }
+};
+
+// PetaBencana.id — laporan banjir warga terverifikasi (Yayasan Peta Bencana / CogniCity).
+async function fetchPetaBencanaBanjir(){
+  try{
+    const data = await fetchWithFallback('https://data.petabencana.id/reports?disaster=flood&format=json');
+    const items = Array.isArray(data) ? data : (data.result || data.reports || []);
+    return items.map((r, i) => {
+      const geom = r.geometry || (r.location && r.location.geometry);
+      const coords = geom && geom.coordinates;
+      const lat = coords ? coords[1] : (r.lat || null);
+      const lon = coords ? coords[0] : (r.lon || null);
+      const props = r.properties || r;
+      return {
+        id: 'pb-flood-' + (props.pkey || props.id || i),
+        type:'flood',
+        title: props.text || props.title || 'Laporan banjir warga',
+        place: props.title || props.text || 'Lokasi tidak diketahui',
+        lat: parseFloat(lat), lon: parseFloat(lon),
+        timeMs: props.created_at ? new Date(props.created_at).getTime() : Date.now(),
+        source:'PetaBencana.id',
+        link:'https://petabencana.id/'
+      };
+    }).filter(q => dalamIndonesia(q.lat, q.lon));
+  }catch(e){ console.warn('PetaBencana gagal dimuat', e); return []; }
+}
+
+// NASA EONET v3 — deteksi satelit untuk erupsi gunung berapi, longsor, dan kebakaran hutan.
+async function fetchEONET(category, days){
+  try{
+    const url = `https://eonet.gsfc.nasa.gov/api/v3/events?category=${category}&status=open&days=${days}&limit=100`;
+    const res = await fetch(url, { cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const typeMap = { volcanoes:'volcano', landslides:'landslide', wildfires:'wildfire' };
+    return (data.events || []).map(ev => {
+      const geo = ev.geometry && ev.geometry[ev.geometry.length - 1];
+      if(!geo) return null;
+      let lon, lat;
+      if(geo.type === 'Point'){ [lon, lat] = geo.coordinates; }
+      else if(Array.isArray(geo.coordinates)){
+        const ring = geo.coordinates[0] && geo.coordinates[0][0];
+        if(ring){ [lon, lat] = ring; }
+      }
+      if(!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      return {
+        id:'eonet-' + ev.id,
+        type: typeMap[category] || category,
+        title: ev.title,
+        place: ev.title,
+        lat, lon,
+        timeMs: geo.date ? new Date(geo.date).getTime() : Date.now(),
+        source:'NASA EONET',
+        link: (ev.sources && ev.sources[0] && ev.sources[0].url) || 'https://eonet.gsfc.nasa.gov/'
+      };
+    }).filter(q => q && dalamIndonesia(q.lat, q.lon));
+  }catch(e){ console.warn('EONET (' + category + ') gagal dimuat', e); return []; }
+}
+
+let hazardData = [];
+let hazardLayer;
+let activeHazardTypes = new Set(['flood','volcano','landslide','wildfire']);
+
+function plotHazards(){
+  if(!hazardLayer) hazardLayer = L.layerGroup().addTo(map);
+  hazardLayer.clearLayers();
+  hazardData.filter(h => activeHazardTypes.has(h.type)).forEach(h => {
+    const meta = HAZARD_META[h.type];
+    const icon = L.divIcon({
+      className:'', html:`<div style="width:22px;height:22px;border-radius:50%;background:${meta.color};display:flex;align-items:center;justify-content:center;font-size:12px;border:1px solid rgba(0,0,0,0.4);">${meta.icon}</div>`,
+      iconSize:[22,22], iconAnchor:[11,11]
+    });
+    L.marker([h.lat, h.lon], { icon }).addTo(hazardLayer).bindPopup(
+      `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5">
+        <b>${meta.icon} ${meta.label}</b><br>${h.title}<br>
+        ${relativeTimeMs(h.timeMs)} · Sumber: ${h.source}<br>
+        <a href="${h.link}" target="_blank" rel="noopener" style="color:var(--sig-mid)">Detail →</a>
+      </div>`
+    );
+  });
+}
+
+function renderHazardModal(){
+  const el = document.getElementById('hazardList');
+  const badge = document.getElementById('hazardBadge');
+  const visible = hazardData.filter(h => activeHazardTypes.has(h.type)).sort((a,b) => b.timeMs - a.timeMs);
+  badge.textContent = hazardData.length ? hazardData.length : '';
+  if(!visible.length){
+    el.innerHTML = '<div class="empty-state">Tidak ada data aktif untuk kategori terpilih saat ini.</div>';
     return;
   }
-  el.innerHTML = '';
-  list.slice(0,9).forEach(q => {
-    const card = document.createElement('div');
-    card.className = 'felt-card';
-    const { lat: fLat, lon: fLon } = parseCoord(q.Coordinates || '');
-    card.innerHTML = `
-      <div class="loc">${formatLokasiGempa(q.Wilayah, fLat, fLon)}</div>
-      <div class="row"><span>Magnitudo</span><b>${q.Magnitude}</b></div>
-      <div class="row"><span>Kedalaman</span><span>${q.Kedalaman}</span></div>
-      <div class="row"><span>Dirasakan</span><span>${q.Dirasakan || '–'}</span></div>
-      <div class="row"><span>Waktu</span><span>${q.Jam}</span></div>
-    `;
-    el.appendChild(card);
+  el.innerHTML = visible.slice(0, 60).map(h => {
+    const meta = HAZARD_META[h.type];
+    return `<div class="hazard-row" data-id="${h.id}">
+      <span class="hazard-icon" style="background:${meta.color}">${meta.icon}</span>
+      <div>
+        <div class="title">${h.title}</div>
+        <div class="meta">${meta.label} · ${relativeTimeMs(h.timeMs)} · ${h.source}</div>
+      </div>
+      <a class="hazard-link" href="${h.link}" target="_blank" rel="noopener">Detail →</a>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.hazard-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if(e.target.tagName === 'A') return;
+      const h = hazardData.find(x => x.id === row.dataset.id);
+      if(h){ closeModal('modalHazards'); map.flyTo([h.lat, h.lon], 10, { duration:1.1 }); }
+    });
   });
-  document.getElementById('feltCount').textContent = Math.min(list.length,9) + ' LAPORAN';
 }
 
+document.querySelectorAll('.hazard-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const type = chip.dataset.type;
+    const cb = chip.querySelector('input');
+    cb.checked = !cb.checked;
+    chip.classList.toggle('active', cb.checked);
+    if(cb.checked) activeHazardTypes.add(type); else activeHazardTypes.delete(type);
+    plotHazards();
+    renderHazardModal();
+  });
+});
+
+document.getElementById('btnHazards').addEventListener('click', () => { openModal('modalHazards'); renderHazardModal(); });
+
+async function loadHazards(){
+  const results = await Promise.allSettled([
+    fetchPetaBencanaBanjir(),
+    fetchEONET('volcanoes', 60),
+    fetchEONET('landslides', 90),
+    fetchEONET('wildfires', 14)
+  ]);
+  hazardData = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  plotHazards();
+  document.getElementById('hazardBadge').textContent = hazardData.length ? hazardData.length : '';
+}
+
+/* ================= LOAD & REFRESH ================= */
 async function loadAll(){
   const statusText = document.getElementById('statusText');
   statusText.textContent = 'MEMPERBARUI DATA…';
   try{
-    const [autoData, usgsData, dirasakanData] = await Promise.all([
+    const [autoData, terkiniData, dirasakanData, usgs30] = await Promise.all([
       fetchWithFallback(URLS.auto),
-      fetchUSGS(buildUSGSUrl()),
-      fetchWithFallback(URLS.dirasakan)
+      fetchWithFallback(URLS.terkini),
+      fetchWithFallback(URLS.dirasakan),
+      fetchUSGS(buildUSGSUrl(30))
     ]);
 
-    const gEvent = autoData.Infogempa.gempa;
-    renderHero(gEvent);
+    renderHero(autoData.Infogempa.gempa);
 
-    const quakeList = normalizeUSGS(usgsData);
-    plotQuakes(quakeList);
-    renderTicker(quakeList);
+    const bmkgTerkini = normalizeBMKGList(terkiniData.Infogempa.gempa);
+    const usgsList = normalizeUSGS(usgs30);
+    const combined = dedupeQuakes([...bmkgTerkini, ...usgsList]);
 
-    const dirasakanList = dirasakanData.Infogempa.gempa;
-    renderFelt(dirasakanList);
+    plotQuakes(combined);
+    renderSidebar(combined);
+    renderListModal(combined.filter(q => Date.now() - q.timeMs <= 7*24*3600*1000));
 
-    statusText.textContent = 'TERHUBUNG — DATA BMKG LIVE';
-    document.getElementById('lastUpdate').textContent =
-      'Terakhir diperbarui: ' + new Date().toLocaleTimeString('id-ID') + ' WIB';
+    renderPie('chartPie', combined);
+    renderBubble('chartBubble', combined);
+    renderBar('chartBar', combined);
+    renderPie('statChartPie', combined);
+    renderBubble('statChartBubble', combined);
+    renderBar('statChartBar', combined);
+    renderStatSummary(combined);
+
+    statusText.textContent = 'TERHUBUNG — BMKG + USGS LIVE';
+    document.getElementById('lastUpdate').textContent = '© BMKG · USGS — diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' WIB';
   }catch(e){
     statusText.textContent = 'GAGAL MEMUAT DATA — PERIKSA KONEKSI';
     console.error(e);
@@ -660,9 +1055,12 @@ async function loadAll(){
 }
 
 initMap();
+renderMMI();
+renderGlosarium();
 loadAll();
+loadHazards();
 setInterval(loadAll, 60000);
-document.getElementById('refreshBtn').addEventListener('click', loadAll);
+setInterval(loadHazards, 5*60000);
 </script>
 </body>
 </html>
