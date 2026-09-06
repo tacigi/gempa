@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>PANTAU GEMPA — Monitor Seismik, Vulkanik & Gerakan Tanah Indonesia</title>
+<title>PANTAU BENCANA — Monitor Seismik, Vulkanik, Hidrometeorologi & Gerakan Tanah Indonesia</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -137,8 +137,8 @@
   <div class="brandbar">
     <span class="dot"></span>
     <div>
-      <h1>PANTAU GEMPA</h1>
-      <div class="sub" id="statusText">MENGHUBUNGKAN…</div>
+      <h1>PANTAU BENCANA</h1>
+      <div class="sub" id="statusText">MEMUAT DATA BENCANA…</div>
     </div>
   </div>
 
@@ -169,6 +169,7 @@
     <div class="leg-item"><span class="dot-leg" style="background:var(--sig-low)"></span> Gempa Dalam (&gt;150km)</div>
     <div class="leg-item"><span class="tri-leg"></span> Gunung Api Aktif</div>
     <div class="leg-item"><span class="dot-leg" style="background:var(--ground)"></span> Tanah Bergeser</div>
+    <div class="leg-item"><span style="width:10px;height:10px;border-radius:50%;background:var(--stone-dim);display:inline-block;text-align:center;font-size:8px;flex-shrink:0;">⚠</span> Bencana Lain (Banjir, Longsor, Kebakaran)</div>
   </div>
 
   <div class="bottom-wrap">
@@ -190,7 +191,7 @@
     <div class="info-card" id="infoCard" title="Klik untuk lihat statistik lengkap">
       <div class="mag-block" id="heroMag">–.–</div>
       <div class="info-mid">
-        <div class="label">GEMPABUMI TERBARU — SUMBER RESMI BMKG</div>
+        <div class="label">GEMPABUMI TERBARU — SUMBER BMKG</div>
         <p class="wilayah" id="heroWilayah">Memuat data…</p>
         <div class="info-meta">
           <span>WAKTU &nbsp;<b id="heroTime">–</b></span>
@@ -1158,7 +1159,7 @@ async function loadAll(){
     renderBar('statChartBar', combined);
     renderStatSummary(combined);
 
-    statusText.textContent = 'TERHUBUNG — BMKG + USGS LIVE';
+    statusText.textContent = 'TERHUBUNG — BMKG · USGS · EONET · PETABENCANA';
     document.getElementById('lastUpdate').textContent = '© BMKG · USGS · PVMBG · NASA — diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' WIB';
   }catch(e){
     statusText.textContent = 'GAGAL MEMUAT DATA — PERIKSA KONEKSI';
