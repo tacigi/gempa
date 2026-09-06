@@ -1256,7 +1256,6 @@ async function loadAll(){
     const bmkgTerkini = normalizeBMKGList(terkiniData.Infogempa.gempa);
     const usgsList = normalizeUSGS(usgs30);
     const combined = dedupeQuakes([...bmkgTerkini, ...usgsList]);
-    // Batasi hanya 50 gempa terbaru
     const limited = combined.slice(0, 50);
 
     plotQuakes(limited);
