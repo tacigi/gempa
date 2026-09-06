@@ -243,7 +243,7 @@
 <div class="modal-bg" id="modalStat">
   <div class="modal-box">
     <div class="modal-head">
-      <h3>Statistik Gempabumi (30 Hari Terakhir)</h3>
+      <h3>Statistik Gempabumi (30 Hari Terakhir, 50 data terbaru)</h3>
       <button class="modal-close" data-close>✕</button>
     </div>
     <div class="modal-body">
@@ -849,7 +849,6 @@ function plotFires(fireData) {
   fireLayer.clearLayers();
 
   fireData.forEach(f => {
-    // Tambahkan ke hazardData untuk modal (hanya jika belum ada)
     if (!hazardData.find(h => h.id === f.id)) {
       hazardData.push({
         ...f,
@@ -857,7 +856,6 @@ function plotFires(fireData) {
         source: 'NASA FIRMS'
       });
     }
-    // Plot di peta
     const icon = L.divIcon({
       className: '',
       html: `<div style="width:20px;height:20px;border-radius:50%;background:#FF5722;display:flex;align-items:center;justify-content:center;font-size:12px;border:1px solid rgba(0,0,0,0.5);">🔥</div>`,
@@ -874,8 +872,6 @@ function plotFires(fireData) {
       </div>`
     );
   });
-
-  // Update badge hazard
   document.getElementById('hazardBadge').textContent = hazardData.length || '';
 }
 
@@ -903,7 +899,6 @@ function plotHazards(){
   if(!hazardLayer) hazardLayer = L.layerGroup().addTo(map);
   hazardLayer.clearLayers();
   hazardData.filter(h => activeHazardTypes.has(h.type)).forEach(h => {
-    // Hindari duplikasi dengan FIRMS (id unik)
     if (h.id && h.id.startsWith('firms-')) return;
     const meta = HAZARD_META[h.type];
     if (!meta) return;
@@ -964,7 +959,6 @@ async function loadHazards(){
   let combined = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
   combined = combined.filter(h => dalamIndonesia(h.lat, h.lon));
 
-  // Jika data API kurang, tambahkan statis
   if(combined.length < 3) {
     combined = STATIC_HAZARDS;
   } else {
@@ -979,14 +973,12 @@ async function loadHazards(){
 
   hazardData = combined;
 
-  // Update status gunung api dari EONET
   erupsiVolcanoIds.clear();
   hazardData.filter(h => h.type === 'volcano').forEach(h => {
     const near = VOLCANO_DB.find(v => Math.abs(v.lat - h.lat) < 0.5 && Math.abs(v.lon - h.lon) < 0.5);
     if(near) erupsiVolcanoIds.add(near.gvpId);
   });
 
-  // Load FIRMS
   try {
     const fires = await fetchFirms(1);
     if (fires && fires.length) {
@@ -1137,7 +1129,7 @@ function renderStatSummary(list){
   const maxMag = list.length ? Math.max(...list.map(q=>q.mag)).toFixed(1) : '–';
   const avgDepth = list.length ? Math.round(list.reduce((s,q)=>s+q.depthKm,0)/list.length) : '–';
   el.innerHTML = `
-    <div class="stat-box"><b>${list.length}</b><span>TOTAL EVENT / 30 HARI</span></div>
+    <div class="stat-box"><b>${list.length}</b><span>TOTAL EVENT / 30 HARI (50 terbaru)</span></div>
     <div class="stat-box"><b>${maxMag}</b><span>MAGNITUDO TERBESAR</span></div>
     <div class="stat-box"><b>${avgMag}</b><span>RATA-RATA MAGNITUDO</span></div>
     <div class="stat-box"><b>${avgDepth} km</b><span>RATA-RATA KEDALAMAN</span></div>`;
@@ -1264,18 +1256,20 @@ async function loadAll(){
     const bmkgTerkini = normalizeBMKGList(terkiniData.Infogempa.gempa);
     const usgsList = normalizeUSGS(usgs30);
     const combined = dedupeQuakes([...bmkgTerkini, ...usgsList]);
+    // Batasi hanya 50 gempa terbaru
+    const limited = combined.slice(0, 50);
 
-    plotQuakes(combined);
-    renderSidebar(combined);
-    renderListModal(combined.filter(q => Date.now() - q.timeMs <= 7*24*3600*1000));
+    plotQuakes(limited);
+    renderSidebar(limited);
+    renderListModal(limited.filter(q => Date.now() - q.timeMs <= 7*24*3600*1000));
 
-    renderPie('chartPie', combined);
-    renderBubble('chartBubble', combined);
-    renderBar('chartBar', combined);
-    renderPie('statChartPie', combined);
-    renderBubble('statChartBubble', combined);
-    renderBar('statChartBar', combined);
-    renderStatSummary(combined);
+    renderPie('chartPie', limited);
+    renderBubble('chartBubble', limited);
+    renderBar('chartBar', limited);
+    renderPie('statChartPie', limited);
+    renderBubble('statChartBubble', limited);
+    renderBar('statChartBar', limited);
+    renderStatSummary(limited);
 
     statusText.textContent = 'TERHUBUNG — BMKG · USGS · EONET · PETABENCANA · FIRMS';
     document.getElementById('lastUpdate').textContent = '© BMKG · USGS · PVMBG · NASA — diperbarui ' + new Date().toLocaleTimeString('id-ID') + ' WIB';
