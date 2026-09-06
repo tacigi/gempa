@@ -386,6 +386,11 @@
         <label class="hazard-chip active" data-type="volcano"><input type="checkbox" checked><span class="hazard-icon" style="background:#E0663D">🌋</span>Gunung Berapi</label>
         <label class="hazard-chip active" data-type="landslide"><input type="checkbox" checked><span class="hazard-icon" style="background:#8B5E3C">⛰️</span>Tanah Longsor</label>
         <label class="hazard-chip active" data-type="wildfire"><input type="checkbox" checked><span class="hazard-icon" style="background:#C1440E">🔥</span>Kebakaran Hutan</label>
+        <label class="hazard-chip active" data-type="fire"><input type="checkbox" checked><span class="hazard-icon" style="background:#D9622E">🔥</span>Kebakaran</label>
+        <label class="hazard-chip active" data-type="haze"><input type="checkbox" checked><span class="hazard-icon" style="background:#9C9184">🌫️</span>Kabut Asap</label>
+        <label class="hazard-chip active" data-type="wind"><input type="checkbox" checked><span class="hazard-icon" style="background:#6B8FB5">🌪️</span>Angin Kencang</label>
+        <label class="hazard-chip active" data-type="drought"><input type="checkbox" checked><span class="hazard-icon" style="background:#D9A441">☀️</span>Kekeringan</label>
+        <label class="hazard-chip active" data-type="storm"><input type="checkbox" checked><span class="hazard-icon" style="background:#5A6FB5">🌀</span>Badai / Siklon</label>
       </div>
       <div id="hazardList"><div class="empty-state">Memuat…</div></div>
       <a class="magma-cta" href="https://magma.esdm.go.id/v1/gunung-api/tingkat-aktivitas" target="_blank" rel="noopener">
@@ -413,10 +418,10 @@
         <li><b style="color:var(--stone)">BMKG — gempadirasakan.json</b>: daftar 15 gempabumi yang dirasakan warga.</li>
         <li><b style="color:var(--stone)">USGS Earthquake API</b>: pelengkap cakupan magnitudo kecil (M2.0+), karena BMKG hanya menyediakan feed publik untuk M5.0+.</li>
       </ul>
-      <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Banjir, Gunung Berapi, Longsor &amp; Kebakaran Hutan</b></p>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:4px;"><b style="color:var(--stone)">Banjir, Kebakaran, Kabut Asap, Angin, Gunung Berapi, Longsor, Kekeringan &amp; Badai</b></p>
       <ul style="font-size:12.5px;line-height:1.9;color:var(--stone-dim);margin-top:0;">
-        <li><b style="color:var(--stone)">PetaBencana.id (Yayasan Peta Bencana)</b>: laporan banjir warga terverifikasi berbasis media sosial, saat ini mencakup Jakarta dan sejumlah kota besar lain.</li>
-        <li><b style="color:var(--stone)">NASA EONET v3</b>: deteksi satelit untuk erupsi gunung berapi, tanah longsor, dan kebakaran hutan secara global, disaring untuk wilayah Indonesia.</li>
+        <li><b style="color:var(--stone)">PetaBencana.id (Yayasan Peta Bencana)</b>: laporan warga terverifikasi berbasis media sosial untuk banjir, kebakaran, kabut asap, dan angin kencang — cakupan Jakarta dan sejumlah kota besar lain.</li>
+        <li><b style="color:var(--stone)">NASA EONET v3</b>: deteksi satelit untuk erupsi gunung berapi, tanah longsor, kebakaran hutan, kekeringan, badai/siklon tropis, dan kabut asap regional, disaring untuk wilayah Indonesia.</li>
         <li><b style="color:var(--stone)">MAGMA Indonesia (PVMBG/ESDM)</b>: status resmi Level I–IV tiap gunung api — ditautkan langsung (tidak disematkan) karena situs sumber tidak menyediakan API publik yang stabil.</li>
       </ul>
       <p style="font-size:12px;line-height:1.7;color:var(--text-dim);">
@@ -875,16 +880,22 @@ function dalamIndonesia(lat, lon){
 }
 
 const HAZARD_META = {
-  flood:     { label:'Banjir',          icon:'🌊', color:'#3B82C4' },
-  volcano:   { label:'Gunung Berapi',   icon:'🌋', color:'#E0663D' },
-  landslide: { label:'Tanah Longsor',   icon:'⛰️', color:'#8B5E3C' },
-  wildfire:  { label:'Kebakaran Hutan', icon:'🔥', color:'#C1440E' }
+  flood:     { label:'Banjir',              icon:'🌊', color:'#3B82C4' },
+  volcano:   { label:'Gunung Berapi',       icon:'🌋', color:'#E0663D' },
+  landslide: { label:'Tanah Longsor',       icon:'⛰️', color:'#8B5E3C' },
+  wildfire:  { label:'Kebakaran Hutan',     icon:'🔥', color:'#C1440E' },
+  fire:      { label:'Kebakaran',           icon:'🔥', color:'#D9622E' },
+  haze:      { label:'Kabut Asap',          icon:'🌫️', color:'#9C9184' },
+  wind:      { label:'Angin Kencang',       icon:'🌪️', color:'#6B8FB5' },
+  drought:   { label:'Kekeringan',          icon:'☀️', color:'#D9A441' },
+  storm:     { label:'Badai / Siklon',      icon:'🌀', color:'#5A6FB5' }
 };
 
-// PetaBencana.id — laporan banjir warga terverifikasi (Yayasan Peta Bencana / CogniCity).
-async function fetchPetaBencanaBanjir(){
+// PetaBencana.id — laporan warga terverifikasi (Yayasan Peta Bencana / CogniCity).
+// disasterKey: 'flood' | 'fire' | 'haze' | 'wind' (sesuai parameter resmi API-nya)
+async function fetchPetaBencana(disasterKey, hazardType){
   try{
-    const data = await fetchWithFallback('https://data.petabencana.id/reports?disaster=flood&format=json');
+    const data = await fetchWithFallback(`https://data.petabencana.id/reports?disaster=${disasterKey}&format=json`);
     const items = Array.isArray(data) ? data : (data.result || data.reports || []);
     return items.map((r, i) => {
       const geom = r.geometry || (r.location && r.location.geometry);
@@ -893,9 +904,9 @@ async function fetchPetaBencanaBanjir(){
       const lon = coords ? coords[0] : (r.lon || null);
       const props = r.properties || r;
       return {
-        id: 'pb-flood-' + (props.pkey || props.id || i),
-        type:'flood',
-        title: props.text || props.title || 'Laporan banjir warga',
+        id: 'pb-' + disasterKey + '-' + (props.pkey || props.id || i),
+        type: hazardType,
+        title: props.text || props.title || ('Laporan warga: ' + HAZARD_META[hazardType].label),
         place: props.title || props.text || 'Lokasi tidak diketahui',
         lat: parseFloat(lat), lon: parseFloat(lon),
         timeMs: props.created_at ? new Date(props.created_at).getTime() : Date.now(),
@@ -903,7 +914,7 @@ async function fetchPetaBencanaBanjir(){
         link:'https://petabencana.id/'
       };
     }).filter(q => dalamIndonesia(q.lat, q.lon));
-  }catch(e){ console.warn('PetaBencana gagal dimuat', e); return []; }
+  }catch(e){ console.warn('PetaBencana (' + disasterKey + ') gagal dimuat', e); return []; }
 }
 
 // NASA EONET v3 — deteksi satelit untuk erupsi gunung berapi, longsor, dan kebakaran hutan.
@@ -913,7 +924,7 @@ async function fetchEONET(category, days){
     const res = await fetch(url, { cache:'no-store' });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const typeMap = { volcanoes:'volcano', landslides:'landslide', wildfires:'wildfire' };
+    const typeMap = { volcanoes:'volcano', landslides:'landslide', wildfires:'wildfire', drought:'drought', severeStorms:'storm', dustHaze:'haze' };
     return (data.events || []).map(ev => {
       const geo = ev.geometry && ev.geometry[ev.geometry.length - 1];
       if(!geo) return null;
@@ -940,7 +951,7 @@ async function fetchEONET(category, days){
 
 let hazardData = [];
 let hazardLayer;
-let activeHazardTypes = new Set(['flood','volcano','landslide','wildfire']);
+let activeHazardTypes = new Set(['flood','volcano','landslide','wildfire','fire','haze','wind','drought','storm']);
 
 function plotHazards(){
   if(!hazardLayer) hazardLayer = L.layerGroup().addTo(map);
@@ -1006,10 +1017,16 @@ document.getElementById('btnHazards').addEventListener('click', () => { openModa
 
 async function loadHazards(){
   const results = await Promise.allSettled([
-    fetchPetaBencanaBanjir(),
+    fetchPetaBencana('flood', 'flood'),
+    fetchPetaBencana('fire', 'fire'),
+    fetchPetaBencana('haze', 'haze'),
+    fetchPetaBencana('wind', 'wind'),
     fetchEONET('volcanoes', 60),
     fetchEONET('landslides', 90),
-    fetchEONET('wildfires', 14)
+    fetchEONET('wildfires', 14),
+    fetchEONET('drought', 90),
+    fetchEONET('severeStorms', 14),
+    fetchEONET('dustHaze', 30)
   ]);
   hazardData = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
   plotHazards();
